@@ -41,7 +41,7 @@ pip install -r requirements.txt
 ---
 
 ## Install eSpeak-ng 
-** For windows I downloaded the espeak-ng.msi **
+**For windows I downloaded the espeak-ng.msi**
 - [https://github.com/espeak-ng/espeak-ng/releases](https://github.com/espeak-ng/espeak-ng/releases) 
 
 ## Setup environment variables.
@@ -62,9 +62,10 @@ Picovoice provides a highly efficient wake word detection engine. To use it, you
 
 ## Kokoro Text-to-Speech (TTS)
 Kokoro Repository:
-- Kokoro is your text-to-speech engine. Follow its specific setup instructions for installation.
-- GitHub Repo (example): https://huggingface.co/hexgrad/Kokoro-82M
 **if you have any issues with Kokoro Follow the Kokoro README.md.**
+- Kokoro is your text-to-speech engine. 
+- GitHub Repo (example): https://huggingface.co/hexgrad/Kokoro-82M
+
 
 ---
 
