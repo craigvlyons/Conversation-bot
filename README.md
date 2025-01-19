@@ -19,7 +19,7 @@ Convo Bot is a voice-controlled AI assistant that integrates wake word detection
 ### 1. Clone the Repository
 ```bash
 git clone https://github.com/craigvlyons/Conversation-bot.git
-cd convo_bot
+cd Conversation-bot
 ```
 # Windows
 ```bash
