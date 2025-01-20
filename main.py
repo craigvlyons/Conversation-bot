@@ -8,8 +8,21 @@ from recording.AutoRecorder import AudioRecorder
 from wake_word.wake_word_detector import WakeWordDetector
 from pydantic_ai import Agent
 from pydantic_ai.models.gemini import GeminiModel
+from enum import Enum
 
 AUDIO_FILE = "C:/convo_bot/recording/audio_out/output.wav"
+class Voice(Enum):
+    AF = 0
+    AF_BELLA = 1
+    AF_SARAH = 2
+    AM_ADAM = 3
+    AM_MICHAEL = 4
+    BF_EMMA = 5
+    BF_ISABELLA = 6
+    BM_GEORGE = 7
+    BM_LEWIS = 8
+    AF_NICOLE = 9
+    AF_SKY = 10
 
 dotenv.load_dotenv()
 ACCESS_KEY = os.getenv("PRORCUPINE_KEY")
@@ -32,6 +45,8 @@ async def get_response(user_input):
 
 def main():
     try:
+        # voice set the voice to use
+        voice = Voice.AF_SKY
         auto = AudioRecorder(silence_duration=2.0)
         tts = KokoroTTS()
         stt = STT()
@@ -39,7 +54,7 @@ def main():
         detector.initialize()
 
         def callback():
-            tts.synthesize("Hello, how can I help you?", 3)
+            tts.synthesize("Hello, how can I help you?", voice.value)
             tts.play_audio()
             
             auto.record()
@@ -47,7 +62,7 @@ def main():
             speach = stt.transcribe(AUDIO_FILE)
             print(f"User said: {speach}")
             if "Stop listening" in speach:
-                tts.synthesize("Goodbye, Talk again soon!", 3)
+                tts.synthesize("Goodbye, Talk again soon!", voice.value)
                 tts.play_audio()
                 print("Exiting program on user request...")
                 detector.cleanup()  # Cleanup detector resources
@@ -60,7 +75,7 @@ def main():
             ai_response = loop.run_until_complete(get_response(speach))
 
             print(f"AI Response: {ai_response}")
-            tts.synthesize(ai_response, 3)
+            tts.synthesize(ai_response, voice.value)
             tts.play_audio()
 
         detector.listen(callback)

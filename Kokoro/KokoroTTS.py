@@ -1,9 +1,4 @@
 import os
-import sys
- # Set environment variables
-os.environ["PHONEMIZER_ESPEAK_LIBRARY"] = r"C:\\Program Files\\eSpeak NG\\libespeak-ng.dll"
-os.environ["PHONEMIZER_ESPEAK_PATH"] = r"C:\\Program Files\\eSpeak NG\\espeak-ng.exe"
-
 import torch
 import pygame
 from Kokoro.models import build_model
