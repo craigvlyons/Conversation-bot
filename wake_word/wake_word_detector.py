@@ -47,8 +47,9 @@ class WakeWordDetector:
                 keyword_index = self.porcupine.process(pcm)
 
                 if keyword_index >= 0:
-                    print(f"Wake word detected! Keyword index: {keyword_index}")
+                    # print(f"Wake word detected! Keyword index: {keyword_index}")
                     callback()  # Trigger the callback function
+                    print("Listening for the wake word...")
         except KeyboardInterrupt:
             print("\nExiting program...")
         except Exception as e:

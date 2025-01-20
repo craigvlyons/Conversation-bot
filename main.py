@@ -10,7 +10,6 @@ from pydantic_ai import Agent
 from pydantic_ai.models.gemini import GeminiModel
 from enum import Enum
 
-AUDIO_FILE = "C:/convo_bot/recording/audio_out/output.wav"
 class Voice(Enum):
     AF = 0
     AF_BELLA = 1
@@ -25,6 +24,7 @@ class Voice(Enum):
     AF_SKY = 10
 
 dotenv.load_dotenv()
+AUDIO_FILE = "C:/convo_bot/recording/audio_out/output.wav"
 ACCESS_KEY = os.getenv("PRORCUPINE_KEY")
 GEMINI_KEY = os.getenv("GEMINI_KEY") 
 # Sensitivity (optional, between 0.0 and 1.0)
@@ -45,7 +45,7 @@ async def get_response(user_input):
 
 def main():
     try:
-        # voice set the voice to use
+        # set the voice to use
         voice = Voice.AF_SKY
         auto = AudioRecorder(silence_duration=2.0)
         tts = KokoroTTS()
@@ -57,12 +57,17 @@ def main():
             tts.synthesize("Hello, how can I help you?", voice.value)
             tts.play_audio()
             
-            auto.record()
-            print("Recording complete.")
+            recording = auto.record()
+            if(not recording):
+                tts.synthesize("Sorry, I didn't get that. How can I help you?", voice.value)
+                tts.play_audio()
+                return
+            
+            # print("Recording complete.")
             speach = stt.transcribe(AUDIO_FILE)
             print(f"User said: {speach}")
             if "Stop listening" in speach:
-                tts.synthesize("Goodbye, Talk again soon!", voice.value)
+                tts.synthesize("Talk again soon, Goodbye!", voice.value)
                 tts.play_audio()
                 print("Exiting program on user request...")
                 detector.cleanup()  # Cleanup detector resources
@@ -78,6 +83,7 @@ def main():
             tts.synthesize(ai_response, voice.value)
             tts.play_audio()
 
+        
         detector.listen(callback)
 
     except KeyboardInterrupt:

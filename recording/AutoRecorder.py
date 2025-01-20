@@ -27,7 +27,7 @@ class AudioRecorder:
         """
         return np.abs(data).mean() < self.silence_threshold
 
-    def record(self):
+    def record(self) -> bool:
         """
         Record audio until a long pause is detected or the maximum duration is reached.
         
@@ -51,7 +51,7 @@ class AudioRecorder:
                 if self.is_silent(chunk):
                     silent_chunks += 1
                     if silent_chunks >= int(self.silence_duration * 10):  # 10 chunks per second
-                        print("Detected silence. Stopping recording.")
+                        # print("Detected silence. Stopping recording.")
                         break
                 else:
                     silent_chunks = 0
@@ -60,8 +60,13 @@ class AudioRecorder:
 
         # Concatenate all chunks into a single array
         audio_data = np.concatenate(recording)
-        print(f"Recording complete. Duration: {len(audio_data) / self.samplerate:.2f} seconds")
+        # check if the audio is silent if its duration is less than silence_duration + 1 then return None
+        if len(audio_data) < self.samplerate * (self.silence_duration + 1):
+            # print("Audio too short. Please try again.")
+            return False
+        # print(f"Recording complete. Duration: {len(audio_data) / self.samplerate:.2f} seconds")
         write(self.audio_file, self.samplerate, audio_data)
+        return True
         
 
     def save(self, audio_data):
@@ -71,4 +76,4 @@ class AudioRecorder:
         :param audio_data: Recorded audio data
         """
         write(self.audio_file, self.samplerate, audio_data)
-        print(f"Audio saved to {self.audio_file}")
+        # print(f"Audio saved to {self.audio_file}")
