@@ -3,7 +3,7 @@ import sys
 import dotenv
 import asyncio
 from stt.stt import STT
-from Kokoro.KokoroTTS import KokoroTTS
+from tts.KokoroTTS import KokoroTTS
 from recording.AutoRecorder import AudioRecorder
 from wake_word.wake_word_detector import WakeWordDetector
 from pydantic_ai import Agent
