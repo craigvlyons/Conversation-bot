@@ -7,4 +7,8 @@ __pycache__/
 *.log
 logs/
 Kokoro/*
-
+*Lib
+*Include
+*Scripts
+*share
+*.cfg
