@@ -12,22 +12,42 @@ class WakeWordDetector:
         :param device_index: Index of the microphone device (-1 for default)
         """
         self.access_key = access_key
-        self.keyword_paths = ["C:\convo_bot\wake_word\Hey-Gary\Hey-Gary_en_windows_v3_0_0.ppn"]  # Change this to your wake keyword path. 
+        # wake_word/jarvis/Jarvis_en_windows_v3_0_0.ppn  C:\convo_bot\wake_word\jarvis\Jarvis_en_windows_v3_0_0.ppn
+        # C:\convo_bot\wake_word\jarvis\Jarvis_en_windows_v3_0_0.ppn  Effective Date: Feb 2, 2025
+        self.keyword_paths = ["C:/convo_bot/wake_word/jarvis/Jarvis_en_windows_v3_0_0.ppn"]  # Change this to your wake keyword path. 
         self.sensitivities = sensitivities or [0.5] * len(self.keyword_paths)
         self.device_index = device_index
         self.porcupine = None
         self.recorder = None
 
+        print(f"ACCESS_KEY: {self.access_key}")
+        print(f"Keyword paths: {self.keyword_paths}")
+        print(f"Sensitivities: {self.sensitivities}")
+        print(f"Device index: {self.device_index}")
+
     def initialize(self):
         """
         Initialize Porcupine and PvRecorder.
         """
-        self.porcupine = pvporcupine.create(
-            access_key=self.access_key,
-            keyword_paths=self.keyword_paths,
-            sensitivities=self.sensitivities
-        )
-        self.recorder = PvRecorder(device_index=self.device_index, frame_length=self.porcupine.frame_length)
+        print("Initializing Porcupine...")
+        try:
+            self.porcupine = pvporcupine.create(
+                access_key=self.access_key,
+                keyword_paths=self.keyword_paths,
+                sensitivities=self.sensitivities
+            )
+            print("Porcupine initialized successfully.")
+        except Exception as e:
+            print(f"Failed to initialize Porcupine: {e}")
+            raise
+
+        print("Initializing PvRecorder...")
+        try:
+            self.recorder = PvRecorder(device_index=self.device_index, frame_length=self.porcupine.frame_length)
+            print("PvRecorder initialized successfully.")
+        except Exception as e:
+            print(f"Failed to initialize PvRecorder: {e}")
+            raise
 
     def listen(self, callback):
         """
