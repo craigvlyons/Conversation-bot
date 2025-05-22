@@ -25,22 +25,9 @@ class Voice(Enum):
 
 dotenv.load_dotenv()
 AUDIO_FILE = "C:/convo_bot/recording/audio_out/output.wav"
-print("os.environ[PRORCUPINE_KEY] =", os.environ.get("PRORCUPINE_KEY"))
-
 ACCESS_KEY = os.getenv("PRORCUPINE_KEY")
-print(f"access key = {ACCESS_KEY}")
-
-from pathlib import Path
-
-env_loaded = dotenv.load_dotenv()
-print(f".env loaded: {env_loaded}")
-print(f"Current working directory: {Path.cwd()}")
-print(f".env file path: {Path.cwd() / '.env'}")
-
-
-
-
 GEMINI_KEY = os.getenv("GEMINI_KEY") 
+
 # Sensitivity (optional, between 0.0 and 1.0)
 SENSITIVITIES = [0.7]
 if not GEMINI_KEY:

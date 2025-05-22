@@ -20,31 +20,26 @@ class WakeWordDetector:
         self.porcupine = None
         self.recorder = None
 
-        print(f"ACCESS_KEY: {self.access_key}")
-        print(f"Keyword paths: {self.keyword_paths}")
-        print(f"Sensitivities: {self.sensitivities}")
-        print(f"Device index: {self.device_index}")
-
     def initialize(self):
         """
         Initialize Porcupine and PvRecorder.
         """
-        print("Initializing Porcupine...")
+        # print("Initializing Porcupine...")
         try:
             self.porcupine = pvporcupine.create(
                 access_key=self.access_key,
                 keyword_paths=self.keyword_paths,
                 sensitivities=self.sensitivities
             )
-            print("Porcupine initialized successfully.")
+            # print("Porcupine initialized successfully.")
         except Exception as e:
             print(f"Failed to initialize Porcupine: {e}")
             raise
 
-        print("Initializing PvRecorder...")
+        # print("Initializing PvRecorder...")
         try:
             self.recorder = PvRecorder(device_index=self.device_index, frame_length=self.porcupine.frame_length)
-            print("PvRecorder initialized successfully.")
+            # print("PvRecorder initialized successfully.")
         except Exception as e:
             print(f"Failed to initialize PvRecorder: {e}")
             raise
