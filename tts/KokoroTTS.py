@@ -5,6 +5,8 @@ from Kokoro.models import build_model
 from Kokoro.kokoro import generate
 import soundfile as sf
 import time
+import textwrap
+import numpy as np
 
 
 
@@ -33,25 +35,30 @@ class KokoroTTS:
         # Initialize pygame mixer
         pygame.mixer.init()
 
-    def synthesize(self, text, voice_index=0):
+    def synthesize(self, text, voice_index=0, chunk_size=250):
         if voice_index < 0 or voice_index >= len(self.voice_names):
             raise ValueError("Invalid voice index")
 
         voice_name = self.voice_names[voice_index]
         voicepack_path = f"{self.voices_dir}/{voice_name}.pt"
+        output_path = self.audio_path
 
-        # Clean up text: remove asterisks
+        # Clean up text
         clean_text = text.replace("*", "")
+        chunks = textwrap.wrap(clean_text, chunk_size)
 
         # Load voicepack
         voicepack = torch.load(voicepack_path, map_location=self.device)
 
-        # Generate speech
-        audio, phonemes = generate(self.model, clean_text, voicepack, lang=voice_name[0])
+        # Remove old audio file if exists
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
-        # Save audio to file
-        output_path = f"{self.output_dir}/{self.audio_file}"
-        sf.write(output_path, audio, 24000)
+        # Generate and append audio for each chunk
+        with sf.SoundFile(output_path, mode='x', samplerate=24000, channels=1, format='WAV') as f:
+            for chunk in chunks:
+                audio, _ = generate(self.model, chunk, voicepack, lang=voice_name[0])
+                f.write(np.array(audio, dtype=np.float32))
 
     def audio_exists(self):
         # Wait for audio file to be created

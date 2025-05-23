@@ -205,6 +205,11 @@ class ChatUI(QMainWindow):
             pixmap = QPixmap(os.path.join(images_dir, "mic_green.png")).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             self.mic_btn.setIcon(QIcon(pixmap))
 
+            # ✅ RECREATE the wake thread if it's not running
+            if not self.wake_thread.isRunning():
+                self.wake_thread = WakeWordThread(self.detector)
+                self.wake_thread.wake_word_detected.connect(self.on_voice_triggered)
+                
             self.wake_thread.start()
         else:
             # Listening OFF
@@ -239,17 +244,15 @@ class ChatUI(QMainWindow):
         if text:
             self.add_message("User", text)
             self.chat_input.clear()
-            # Run the async call safely in the Qt main thread
-            QTimer.singleShot(0, lambda: asyncio.ensure_future(self.get_agent_response(text)))
+            asyncio.create_task(self.get_agent_response(text))
 
     async def get_agent_response(self, text):
-        result = await self.agent.run(text)
-        response_text = result.data
-        self.add_message("AI", response_text)
+        response = await self.agent.get_response(text)
+        self.add_message("AI", response)
 
          # Run synthesize and play_audio in background thread to avoid blocking the UI
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self.tts.synthesize, response_text, self.voice)
+        await loop.run_in_executor(None, self.tts.synthesize, response, self.voice)
         await loop.run_in_executor(None, self.tts.play_audio)
         
 
@@ -262,13 +265,16 @@ class ChatUI(QMainWindow):
     async def handle_voice_interaction(self):
         loop = asyncio.get_event_loop()
 
-        # Immediately update UI to show it's listening
-        self.chat_input.setPlaceholderText("Listening...")
-        self.chat_input.setReadOnly(True)
+        # Step 1: Show speaking prompt
+        self.chat_input.setPlaceholderText("...")
 
-        # Prompt the user
         await loop.run_in_executor(None, self.tts.synthesize, "How can I help you?", self.voice)
         await loop.run_in_executor(None, self.tts.play_audio)
+
+        # Step 2: Show "Listening..." placeholder AFTER speaking finishes
+        self.chat_input.setPlaceholderText("Listening...")
+        QApplication.processEvents()  # <-- Force UI update
+        self.chat_input.setReadOnly(True)
 
         # Now do the recording
         recording = await loop.run_in_executor(None, self.auto.record)
@@ -277,6 +283,7 @@ class ChatUI(QMainWindow):
             await loop.run_in_executor(None, self.tts.play_audio)
             self.chat_input.setPlaceholderText("Ask anything")
             self.chat_input.setReadOnly(False)
+            QApplication.processEvents()  # <-- Force UI update
             return
 
         # Transcribe
@@ -289,7 +296,7 @@ class ChatUI(QMainWindow):
         # Reset UI
         self.chat_input.setPlaceholderText("Ask anything")
         self.chat_input.setReadOnly(False)
-
+        QApplication.processEvents()  # <-- Force UI update
     async def get_response(self, user_input):
         response = await self.agent.run(user_input)  # Use 'await' directly
         return response.data
