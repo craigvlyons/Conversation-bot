@@ -26,7 +26,7 @@ class ChatUI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-        self.setFixedSize(540, 320)
+        self.setFixedSize(540, 100)  # Start with small height
         self.old_pos = None
 
         # Main widget and layout
@@ -45,6 +45,9 @@ class ChatUI(QMainWindow):
         self.messages_layout.addStretch()
         self.scroll_area.setWidget(self.messages_widget)
         main_layout.addWidget(self.scroll_area)
+
+        # Hide messages on startup
+        self.scroll_area.setVisible(False)
 
         # Multi-line chat input
         self.chat_input = QTextEdit()
@@ -69,22 +72,66 @@ class ChatUI(QMainWindow):
 
         images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
         icon_files = {
+            "send": os.path.join(images_dir, "send_white.png"),
             "messages": os.path.join(images_dir, "message_white.png"),
+            "messages_green": os.path.join(images_dir, "message_green.png"),
             "mic": os.path.join(images_dir, "mic_white.png"),
+            "mic_green": os.path.join(images_dir, "mic_green.png"),
             "bot": os.path.join(images_dir, "boticon.png"),
+            "close": os.path.join(images_dir, "close.png"),
         }
 
-        for key in ["messages", "mic", "bot"]:
+        # --- Add send button to the far left ---
+        self.send_btn = QPushButton()
+        send_pixmap = QPixmap(icon_files["send"]).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        self.send_btn.setIcon(QIcon(send_pixmap))
+        self.send_btn.setIconSize(send_pixmap.size())
+        self.send_btn.setFixedSize(36, 36)
+        self.send_btn.setStyleSheet("""
+                                QPushButton {
+                                    background-color: transparent; 
+                                    border: none;
+                                }
+                                QPushButton:hover {
+                                    border-radius: 8px;
+                                    border: 1.5px solid #444444;
+                                }
+                            """)
+        self.send_btn.clicked.connect(self.send_message)
+        icon_bar.insertWidget(0, self.send_btn)  # Insert at the left
+
+        self.messages_btn = None  # Store reference to the messages button
+        self.mic_btn = None       # Store reference to the mic button
+        self.mic_selected = False # Track mic state
+
+        for key in ["messages", "mic", "close", "bot"]:
             btn = QPushButton()
             pixmap = QPixmap(icon_files[key]).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             btn.setIcon(QIcon(pixmap))
             btn.setIconSize(pixmap.size())
             btn.setFixedSize(36, 36)
-            btn.setStyleSheet("background-color: transparent; border: none;")
+            btn.setStyleSheet("""
+                                QPushButton {
+                                    background-color: transparent; 
+                                    border: none;
+                                }
+                                QPushButton:hover {
+                                    border-radius: 8px;
+                                    border: 1.5px solid #444444;
+                                }
+                            """)
             icon_bar.addWidget(btn)
 
             if key == "messages":
                 btn.clicked.connect(self.toggle_chat_log)
+                self.messages_btn = btn  # Save reference
+                btn.setIcon(QIcon(QPixmap(icon_files["messages"]).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)))
+            elif key == "mic":
+                btn.clicked.connect(self.toggle_mic)
+                self.mic_btn = btn  # Save reference
+                btn.setIcon(QIcon(QPixmap(icon_files["mic"]).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)))
+            elif key == "close":
+                btn.clicked.connect(self.shutdown)
 
         main_layout.addLayout(icon_bar)
 
@@ -114,14 +161,32 @@ class ChatUI(QMainWindow):
 
     def toggle_chat_log(self):
         # Show/hide the scroll area
-        is_visable = self.scroll_area.isVisible()
-        self.scroll_area.setVisible(not is_visable)
-        if is_visable:
+        is_visible = self.scroll_area.isVisible()
+        self.scroll_area.setVisible(not is_visible)
+        images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
+        if is_visible:
             # Hide messages, shrink window
             self.setFixedHeight(100)
+            # Set icon to white
+            pixmap = QPixmap(os.path.join(images_dir, "message_white.png")).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.messages_btn.setIcon(QIcon(pixmap))
         else:
             # Show messages, restore window size
             self.setFixedHeight(400)
+            # Set icon to green
+            pixmap = QPixmap(os.path.join(images_dir, "message_green.png")).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.messages_btn.setIcon(QIcon(pixmap))
+
+    def toggle_mic(self):
+        # Toggle mic state and icon, print "pressed"
+        self.mic_selected = not self.mic_selected
+        images_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
+        if self.mic_selected:
+            pixmap = QPixmap(os.path.join(images_dir, "mic_green.png")).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        else:
+            pixmap = QPixmap(os.path.join(images_dir, "mic_white.png")).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        self.mic_btn.setIcon(QIcon(pixmap))
+        print("pressed")
 
     def display_last_messages(self):
         # Clear current messages
@@ -142,12 +207,17 @@ class ChatUI(QMainWindow):
         # Scroll to bottom
         self.scroll_area.verticalScrollBar().setValue(self.scroll_area.verticalScrollBar().maximum())
 
+    def send_message(self):
+        text = self.chat_input.toPlainText().strip()
+        if text:
+            self.add_message("User", text)
+            self.chat_input.clear()
+
+    def shutdown(self):
+        self.close()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = ChatUI()
-    # Example messages for demo
-    window.add_message("User", "Hello, AI!")
-    window.add_message("AI", "Hello! How can I help you today?")
-    window.show()
+    chat_ui = ChatUI()
+    chat_ui.show()
     sys.exit(app.exec())
