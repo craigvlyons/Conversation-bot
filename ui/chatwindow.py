@@ -239,17 +239,15 @@ class ChatUI(QMainWindow):
         if text:
             self.add_message("User", text)
             self.chat_input.clear()
-            # Run the async call safely in the Qt main thread
-            QTimer.singleShot(0, lambda: asyncio.ensure_future(self.get_agent_response(text)))
+            asyncio.create_task(self.get_agent_response(text))
 
     async def get_agent_response(self, text):
-        result = await self.agent.run(text)
-        response_text = result.data
-        self.add_message("AI", response_text)
+        response = await self.agent.get_response(text)
+        self.add_message("AI", response)
 
          # Run synthesize and play_audio in background thread to avoid blocking the UI
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self.tts.synthesize, response_text, self.voice)
+        await loop.run_in_executor(None, self.tts.synthesize, response, self.voice)
         await loop.run_in_executor(None, self.tts.play_audio)
         
 
