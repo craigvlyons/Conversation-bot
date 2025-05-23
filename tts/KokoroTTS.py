@@ -40,11 +40,14 @@ class KokoroTTS:
         voice_name = self.voice_names[voice_index]
         voicepack_path = f"{self.voices_dir}/{voice_name}.pt"
 
+        # Clean up text: remove asterisks
+        clean_text = text.replace("*", "")
+
         # Load voicepack
         voicepack = torch.load(voicepack_path, map_location=self.device)
 
         # Generate speech
-        audio, phonemes = generate(self.model, text, voicepack, lang=voice_name[0])
+        audio, phonemes = generate(self.model, clean_text, voicepack, lang=voice_name[0])
 
         # Save audio to file
         output_path = f"{self.output_dir}/{self.audio_file}"
