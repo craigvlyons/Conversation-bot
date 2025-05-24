@@ -15,7 +15,7 @@ if not GEMINI_KEY:
     sys.exit(1)
 
 # Agent.
-agent = GeminiAIAgent(GEMINI_KEY, tools=[Tools])
+agent = GeminiAIAgent(GEMINI_KEY, tools=Tools)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
