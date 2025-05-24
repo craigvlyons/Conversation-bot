@@ -1,5 +1,55 @@
 ▶ TASKS:
 
+Work Item ID: 10048
+Title: Develop Conversion Overlay
+State: To Do
+Assigned To: Craig Lyons
+Created: 2025-05-24T16:12:11.123Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10048
+Description:
+Create a visually appealing overlay to display during the conversion process. The overlay should inform the user that the conversion is in progress and provide a progress indicator if appropriate.
+------------------------------------------------------------
+
+Work Item ID: 10049
+Title: Implement Conversion Logic
+State: To Do
+Assigned To: Craig Lyons
+Created: 2025-05-24T16:12:16.357Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10049
+Description:
+Develop the backend functionality to handle the button click. This involves updating the 'Is Trial' field, the 'tru_lockdatetime' field, and potentially other relevant fields in the Agreement Product/Item. Reference the 'triggercancelevent' code for guidance.
+------------------------------------------------------------
+
+Work Item ID: 10050
+Title: Handle Backend Processing
+State: To Do
+Assigned To: Craig Lyons
+Created: 2025-05-24T16:12:21.157Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10050
+Description:
+Implement logic to handle potential delays in backend processing. Display a message to the user indicating that backend processes might take some time. The message should clearly communicate the expected behavior.
+------------------------------------------------------------
+
+Work Item ID: 10051
+Title: Implement Success/Error Handling
+State: To Do
+Assigned To: Craig Lyons
+Created: 2025-05-24T16:12:27.41Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10051
+Description:
+Implement error handling to gracefully manage potential issues during the conversion process. Display appropriate messages to the user in case of success or failure and close the overlay accordingly.
+------------------------------------------------------------
+
+Work Item ID: 10052
+Title: Test Conversion Functionality
+State: To Do
+Assigned To: Craig Lyons
+Created: 2025-05-24T16:12:32.423Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10052
+Description:
+Thoroughly test the 'Convert to License' button functionality in the Product Dev Sandbox Copy environment. This includes testing various scenarios, including successful conversions, error handling, and edge cases.
+------------------------------------------------------------
+
 Work Item ID: 9963
 Title: create package of the solutions
 State: Done
@@ -70,6 +120,16 @@ Description:
 Task Description
 ------------------------------------------------------------
 
+Work Item ID: 10046
+Title: Design Button UI
+State: To Do
+Assigned To: Craig Lyons
+Created: 2025-05-24T16:12:00.663Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10046
+Description:
+Design the UI for the 'Convert to License' button, ensuring it's visually consistent with the existing 'Cancel Product' button. Consider placement, styling, and accessibility best practices for a Power Apps web page.
+------------------------------------------------------------
+
 Work Item ID: 10012
 Title: create new vs 2 branch
 State: To Do
@@ -98,5 +158,15 @@ Created: 2025-05-21T13:56:58.987Z
 URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10014
 Description:
 
+------------------------------------------------------------
+
+Work Item ID: 10047
+Title: Implement Button Visibility Logic
+State: To Do
+Assigned To: Craig Lyons
+Created: 2025-05-24T16:12:04.817Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10047
+Description:
+Implement conditional visibility for the 'Convert to License' button based on the 'Is Trial' field value. The button should only appear when 'Is Trial' is 'Yes' in the Power Apps web page context.
 ------------------------------------------------------------
 
