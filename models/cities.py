@@ -1,4 +1,5 @@
 import requests
+from functools import lru_cache
 
 class City:
     def __init__(self, name, latitude, longitude, country):
@@ -15,36 +16,33 @@ class City:
             "country": self.country
         }
 
-# In-memory cache for cities
-_city_cache = {}
+    def __repr__(self):
+        return f"City(name={self.name}, lat={self.latitude}, lon={self.longitude}, country={self.country})"
 
-def get_city(city_name):
-    print(f"[get_city] Looking up city: {city_name}")
-    city_name_lower = city_name.lower()
-    if city_name_lower in _city_cache:
-        print(f"[get_city] Found in cache: {city_name_lower}")
-        return _city_cache[city_name_lower]
-    # Fetch from Open-Meteo geocoding API
-    url = f"https://geocoding-api.open-meteo.com/v1/search?name={city_name}"
+@lru_cache(maxsize=100)
+def get_city(city_name: str):
+    city_name_clean = city_name.strip().lower()
+    print(f"[get_city] Looking up city: {city_name_clean} (cached: {get_city.cache_info()})")
+
+    url = f"https://geocoding-api.open-meteo.com/v1/search?name={city_name_clean}"
     print(f"[get_city] Fetching from API: {url}")
     response = requests.get(url)
-    print(f"[get_city] API response status: {response.status_code}")
+
     if response.status_code == 200:
         data = response.json()
         results = data.get("results")
         if results:
             city_data = results[0]
             print(f"[get_city] API result: {city_data}")
-            city = City(
+            return City(
                 name=city_data.get("name"),
                 latitude=city_data.get("latitude"),
                 longitude=city_data.get("longitude"),
                 country=city_data.get("country")
             )
-            _city_cache[city_name_lower] = city
-            return city
         else:
-            print(f"[get_city] No results for: {city_name}")
+            print(f"[get_city] No results for: {city_name_clean}")
     else:
-        print(f"[get_city] Failed to fetch city: {city_name}")
+        print(f"[get_city] Failed to fetch city: {city_name_clean}")
+
     return None
