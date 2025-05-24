@@ -1,13 +1,14 @@
 import sys
 import os
+import asyncio
+
 from collections import deque
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTextEdit, QLabel, QPushButton, QScrollArea, QFrame
 )
 from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtCore import Qt, QTimer
-import asyncio
+from PyQt6.QtCore import Qt, QTimer, QEvent
 from stt.stt import STT
 from tts.KokoroTTS import KokoroTTS
 from recording.AutoRecorder import AudioRecorder
@@ -79,6 +80,7 @@ class ChatUI(QMainWindow):
                 font-size: 14px;
             }
         """)
+        self.chat_input.installEventFilter(self)
         self.chat_input.textChanged.connect(self.adjust_input_height)
         main_layout.addWidget(self.chat_input)
 
@@ -248,12 +250,13 @@ class ChatUI(QMainWindow):
 
     async def get_agent_response(self, text):
         response = await self.agent.get_response(text)
-        self.add_message("AI", response)
+        self.add_message("Jarvis", response)
 
-         # Run synthesize and play_audio in background thread to avoid blocking the UI
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, self.tts.synthesize, response, self.voice)
-        await loop.run_in_executor(None, self.tts.play_audio)
+        if self.mic_selected:
+            # Run synthesize and play_audio in background thread to avoid blocking the UI
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, self.tts.synthesize, response, self.voice)
+            await loop.run_in_executor(None, self.tts.play_audio)
         
 
     def shutdown(self):
@@ -297,6 +300,15 @@ class ChatUI(QMainWindow):
         self.chat_input.setPlaceholderText("Ask anything")
         self.chat_input.setReadOnly(False)
         QApplication.processEvents()  # <-- Force UI update
+
     async def get_response(self, user_input):
         response = await self.agent.run(user_input)  # Use 'await' directly
         return response.data
+    
+    def eventFilter(self, obj, event):
+        if obj == self.chat_input and event.type() == QEvent.Type.KeyPress:
+            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                if not (event.modifiers() & Qt.KeyboardModifier.ShiftModifier):  # Enter only (no Shift)
+                    self.send_message()
+                    return True  # prevent newline insertion
+        return super().eventFilter(obj, event)

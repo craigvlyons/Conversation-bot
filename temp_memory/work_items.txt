@@ -1,0 +1,72 @@
+▶ TOP-LEVEL WORK ITEMS:
+
+Work Item ID: 10044
+Title: Create Stage History sh_StageHistoryBPFTable  Agent Topic
+State: Approved
+Assigned To: Craig Lyons
+Created: 2025-05-23T17:24:21.29Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10044
+Description:
+This will prompt Check if the user is a System Admin, if not tell them they need System Admin permission to do this. Ask for Logical name of the table Ask for Default Notification in Minutes Create sh_StageHistoryBPFTable record
+------------------------------------------------------------
+
+Work Item ID: 10037
+Title: Show the Stage History time in Months/Days/Hours/Minutes
+State: Approved
+Assigned To: Craig Lyons
+Created: 2025-05-23T15:48:14.83Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10037
+Description:
+In the Stage History UI PCF Control show the time in the format: {W} Months {X} Days {Y} Hours {Z} Minutes Use these values. 1 month = 43800 minutes 1 Day = 1440 1 Hour = 60 minutes A minimum of one minute.
+------------------------------------------------------------
+
+Work Item ID: 10039
+Title: Stage History UI include the current Active record
+State: Approved
+Assigned To: Craig Lyons
+Created: 2025-05-23T15:55:53.657Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10039
+Description:
+In the Stage History UI PCF Control include the current record that is active. Add a "Current Stage" flag on the card. Calculate the time based on start time to now.
+------------------------------------------------------------
+
+Work Item ID: 9834
+Title: Customer Portal Add a button on Agreement Product/Item to Convert
+State: In Progress
+Assigned To: Craig Lyons
+Created: 2025-05-07T13:26:26.883Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/9834
+Description:
+The customer needs to be able to convert an Agreement Product/Item from a Trial to a licenses product. In the Product Dev Sandbox Copy environment. On the "Unlocked License Agreement Item" Edit page add a button next to the "Cancel Product" button. The button should be labeled "Convert to License". The button should only be visible if the "Is Trial" field = Yes The button click should Show an overlay that it is processing Update the Agreement Product Is Trial field Update the tru_lockdatetime field on the Agreement Display a message that backend processes might take a bit to process the changes. close the overlay an completion or any errors. See the "triggercancelevent" code for an example
+------------------------------------------------------------
+
+Work Item ID: 9734
+Title: Create Stage History App Source Package
+State: In Progress
+Assigned To: Craig Lyons
+Created: 2025-04-10T18:48:33.543Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/9734
+Description:
+App Source needs a compliant package. Create a copy of the deployment package created in #9628 Use the same repo as Stage History Create a Deployment folder. Add the managed solution for Stage History Unlocked to the deployment package. This is available in https://dev.azure.com/trunorth/DynamicsUnlocked/_git/dataverse-solutions-build?path=/StageHistory Note: Versioning of this package is very important. Add the terms and conditions, which we will get from the lawyer. Follow the instructions on creating the published app package. https://learn.microsoft.com/en-us/power-platform/developer/appsource/create-package-app
+------------------------------------------------------------
+
+Work Item ID: 9746
+Title: Create version 2.0 of Stage History
+State: In Progress
+Assigned To: Craig Lyons
+Created: 2025-04-15T16:35:47.877Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/9746
+Description:
+Update the Stage History Build yml file to have version 2.0 https://dev.azure.com/trunorth/DynamicsUnlocked/_build?definitionId=60&_a=summary Run the build. Run the Stage History Copy to Sharepoint release: https://dev.azure.com/trunorth/DynamicsUnlocked/_release?_a=releases&view=mine&definitionId=9 In the Stage History Repo Add a ReleaseNotes.md file. Add notes for version 2.0. Once main has everything create a versions/2.0.0.0 branch and lock it. Lock the branch See the policy on branch 1.6 and copy it. Post message in Teams/Team D365 about new version. put link to Release Notes file.
+------------------------------------------------------------
+
+Work Item ID: 9761
+Title: Reinstall Unlocked License and Trial Period
+State: Approved
+Assigned To: Craig Lyons
+Created: 2025-04-18T17:05:13.753Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/9761
+Description:
+When someone re-installs we need to check if the product already exists in an agreement, if it does then we don't give them another 14 day trial. In the Call Home API When we receive the new license message. Make sure we check if there is an existing instance of the Agreement Product in the Agreement, either active or inactive. If there is one If it is in-active reactivate it. If it was a trial leave it as a trial If it wasn't a trial, then leave it as not a trial. Don't reset the Unlocked End Date on the Agreement.
+------------------------------------------------------------
+

@@ -1,0 +1,102 @@
+▶ TASKS:
+
+Work Item ID: 9963
+Title: create package of the solutions
+State: Done
+Assigned To: Craig Lyons
+Created: 2025-05-20T17:02:51.547Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/9963
+Description:
+
+------------------------------------------------------------
+
+Work Item ID: 9964
+Title: add logo
+State: In Progress
+Assigned To: Craig Lyons
+Created: 2025-05-20T17:03:05.44Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/9964
+Description:
+
+------------------------------------------------------------
+
+Work Item ID: 9965
+Title: add input.xml
+State: Done
+Assigned To: Craig Lyons
+Created: 2025-05-20T17:03:27.303Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/9965
+Description:
+
+------------------------------------------------------------
+
+Work Item ID: 9966
+Title: add content type.xml
+State: Done
+Assigned To: Craig Lyons
+Created: 2025-05-20T17:08:08.99Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/9966
+Description:
+
+------------------------------------------------------------
+
+Work Item ID: 9967
+Title: add terms of use .xml
+State: To Do
+Assigned To: Craig Lyons
+Created: 2025-05-20T17:08:26.84Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/9967
+Description:
+
+------------------------------------------------------------
+
+Work Item ID: 9968
+Title: app source package finished
+State: To Do
+Assigned To: Craig Lyons
+Created: 2025-05-20T17:11:07.89Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/9968
+Description:
+
+------------------------------------------------------------
+
+Work Item ID: 10045
+Title: Task Title
+State: To Do
+Assigned To: Craig Lyons
+Created: 2025-05-24T15:02:03.08Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10045
+Description:
+Task Description
+------------------------------------------------------------
+
+Work Item ID: 10012
+Title: create new vs 2 branch
+State: To Do
+Assigned To: Unassigned
+Created: 2025-05-21T13:55:47.387Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10012
+Description:
+
+------------------------------------------------------------
+
+Work Item ID: 10013
+Title: branch policy
+State: To Do
+Assigned To: Unassigned
+Created: 2025-05-21T13:56:21.547Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10013
+Description:
+
+------------------------------------------------------------
+
+Work Item ID: 10014
+Title: push package to branch
+State: To Do
+Assigned To: Unassigned
+Created: 2025-05-21T13:56:58.987Z
+URL: https://dev.azure.com/trunorth/7bc5c429-52cb-4e11-a093-ae28be34860b/_apis/wit/workItems/10014
+Description:
+
+------------------------------------------------------------
+
