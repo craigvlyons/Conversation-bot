@@ -104,24 +104,39 @@ convo_bot/
 ├── README.md                  # Project documentation
 ├── requirements.txt           # Python dependencies
 │
+├── agents/                    # AI agent/model logic
+│   └── gemini_agent.py        # Gemini agent wrapper
+│
+├── tools/                     # Tooling and integrations (e.g., MCP, Playwright)
+│   └── mcp_tool.py            # MCP (Multi-Channel Provider) tooling for agent
+│
 ├── recording/                 # Audio recording components
 │   ├── AutoRecorder.py        # Handles audio recording
 │   └── audio_out/             # Directory for recorded audio files
 │
 ├── stt/                       # Speech-to-text components
-│   ├── STT.py                 # Handles transcription using openApi Whisper
+│   └── stt.py                 # Handles transcription using OpenAI Whisper
+│
+├── tts/                       # Text-to-speech components
+│   └── KokoroTTS.py           # Synthesizes and plays TTS responses
 │
 ├── wake_word/                 # Wake word detection components
-|   |── wake_model             # This is were the wake word model.ppn
-│   ├── WakeWordDetector.py    # Detects wake words
+│   ├── wake_word_detector.py  # Detects wake words
+│   ├── wake_word_thread.py    # Wake word detection threading
+│   └── wake_model/            # Directory for wake word model files (.ppn)
 │
-├── Kokoro/                    # Text-to-speech components
+├── ui/                        # User interface components
+│   ├── chatwindow.py          # Main chat window UI
+│   └── images/                # UI images/icons
+│
+├── Kokoro/                    # Kokoro TTS engine and models
 │   ├── KokoroTTS.py           # Synthesizes and plays TTS responses
 │   ├── models.py              # Kokoro-specific model utilities
 │   ├── istftnet.py            # Utility for audio decoding
+│   └── voices/                # Voice model files
 │
-├── models/                    # Local LLM models
-│   ├── model_loader.py        # Loads and queries LLaMA or other LLMs
+├── models/                    # Local LLM models (optional)
+│   └── model_loader.py        # Loads and queries LLaMA or other LLMs
 │
 └── logs/                      # Log files for debugging
 ```
