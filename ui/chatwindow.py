@@ -249,11 +249,14 @@ class ChatUI(QMainWindow):
             asyncio.create_task(self.get_agent_response(text))
 
     async def get_agent_response(self, text):
-        response = await self.agent.get_response(text)
+         # Get conversation history for LLM context (excluding current input)
+        history = [f"{m.sender}: {m.text}" for m in Message.get_last_messages()[-5:]]
+        history_text = "\n".join(history)
+        response = await self.agent.get_response(text, history=history_text)
         
         # OPTIONAL: Flag if this is a RAG/memory result
         if isinstance(response, str) and (
-            "Got it. I’ll remember that." in response or
+            "Got it. I'll remember that." in response or
             "Logged car maintenance info." in response or
             "I'm not sure what to do with that memory request." not in response and "recall" in text.lower()
         ):

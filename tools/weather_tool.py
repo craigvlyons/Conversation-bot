@@ -28,17 +28,9 @@ class WeatherTool(BaseTool):
             data = response.json()
             current = data.get("current_weather")
             if current:
-                weather = {
-                    "location": city.name,
-                    "country": city.country,
-                    "latitude": city.latitude,
-                    "longitude": city.longitude,
-                    "temperature": f"{current.get('temperature')}\u00b0C",
-                    "windspeed": f"{current.get('windspeed')} km/h",
-                    "weathercode": current.get('weathercode'),
-                    "time": current.get('time')
-                }
-                return json.dumps(weather, ensure_ascii=False)
+                temp_c = current.get("temperature")
+                temp_f = (temp_c * 9/5) + 32
+                return f"The temperature in {city.name} is {temp_f:.1f}°F."
             else:
                 return f"Weather data not available for {city.name}."
         else:

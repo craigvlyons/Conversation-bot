@@ -1,6 +1,7 @@
 import hashlib
 import numpy as np
 import logging
+from datetime import datetime, timezone
 from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
 from urllib.parse import quote_plus
@@ -25,13 +26,16 @@ class RAGHelper:
     def add_memory(self, text: str, category="general"):
         embedding = self.embed_text(text)
         memory_id = hashlib.md5(f"{text}_{category}".encode()).hexdigest()
+        timestamp = datetime.now(timezone.utc).isoformat()  
+
         self.collection.replace_one(
             {"_id": memory_id},
             {
                 "_id": memory_id,
                 "content": text,
                 "embedding": embedding,
-                "category": category
+                "category": category,
+                "timestamp": timestamp
             },
             upsert=True
         )
@@ -51,6 +55,15 @@ class RAGHelper:
 
         results.sort(reverse=True)
         return [r[1] for r in results[:top_k]]
+    
+    def query_today(self, category="note"):
+        today = datetime.now(timezone.utc).date()
+        return list(self.collection.find({
+            "category": category,
+            "$expr": {
+                "$eq": [{"$dateToString": {"format": "%Y-%m-%d", "date": {"$toDate": "$timestamp"}}}, today.isoformat()]
+            }
+        }))
 
     @staticmethod
     def cosine_similarity(a, b):

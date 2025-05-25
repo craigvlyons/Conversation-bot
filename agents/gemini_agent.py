@@ -13,7 +13,8 @@ TOOL_TRIGGER_MAP = {
         "analyze board"
     ],
     "weather": ["weather", "forecast", "temperature"],
-    "rag_memory": ["remember", "what do you remember", "recall", "note"],
+    "rag_memory": ["remember", "what do you remember", "recall", "note",
+                   "clear memory", "delete memory", "forget", "remove memory"],
     "car_maintenance": ["car", "oil", "filter", "maintenance", "jeep", "subaru", "mileage", "air filter"]
 }
 
@@ -31,8 +32,9 @@ class GeminiAIAgent:
         self.agent = Agent(self.model)
         self.tools = tools or []
 
-    async def get_response(self, user_input):
-        normalized_input = user_input.lower()
+    async def get_response(self, user_input, history=None):
+        context =  f"{history}\nUser: {user_input}" if history else user_input
+        normalized_input = context.lower()
         for tool in self.tools:
             triggers = TOOL_TRIGGER_MAP.get(tool.name(), [])
             if any(trigger in normalized_input for trigger in triggers):

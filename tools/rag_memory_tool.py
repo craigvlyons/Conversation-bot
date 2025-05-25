@@ -2,25 +2,88 @@
 from pymongo import MongoClient
 from .base_tool import BaseTool
 from utils.rag_helper import RAGHelper
-import os
+from datetime import datetime, timezone
+
 
 class RAGMemoryTool(BaseTool):
-    def __init__(self):
+    def __init__(self, fallback_llm=None):
         self.helper = RAGHelper()
+        self.fallback_llm = fallback_llm
 
     def name(self):
         return "rag_memory"
-
+    
     async def run(self, user_input):
         lower_input = user_input.lower()
-        if "remember" in lower_input:
+        is_question = lower_input.strip().endswith("?") or lower_input.startswith(("do", "what", "when"))  # Common question starters do you, when did i, etc.
+       
+        # === Case 1: Save memory ===
+        if "remember" in lower_input and not is_question:
+            existing = self.helper.query_memory(user_input, category="note", top_k=1)
+            if existing and existing[0].lower() in user_input.lower():
+                return "I've already noted that."
+
             self.helper.add_memory(user_input, category="note")
             return "Got it. I'll remember that."
 
-        elif "recall" in lower_input or "what do you remember" in lower_input:
-            results = self.helper.query_memory(user_input, category="note")
-            return "\n".join(results)
+        # === Case 2: Explicit memory recall prompt ===
+        if "recall" in lower_input or "what do you remember" in lower_input:
+            recent = (
+                self.helper.collection
+                .find({"category": "note"})
+                .sort("timestamp", -1)
+                .limit(10)
+            )
+            notes = [doc["content"] for doc in recent]
+            return "\n• " + "\n• ".join(notes) if notes else "I don't remember anything yet."
+        
+        # === Case 3: Dynamic LLM-backed recall ===
+        if "remember" in lower_input or "recall" in lower_input or is_question:
+            memory = self.helper.query_memory(user_input, category="note", top_k=5)
+
+            if memory:
+                if self.fallback_llm:
+                    prompt = f"""Here is the user's question: "{user_input}"
+
+                    Here are some memories that may help:
+                    {chr(10).join(f"- {m}" for m in memory)}
+
+                    Based on this, answer the user's question naturally. If none of the memories are relevant, say so.
+                    """
+                    response = await self.fallback_llm.get_response(prompt)
+                    return response
+                else:
+                    return "\n• " + "\n• ".join(memory)
+
+            return "I don't remember anything relevant to that."
+        
+        # === Case 4: Clear memory logic ===
+        if "clear memory" in lower_input or "delete memory" in lower_input:
+            # Extract keyword (if any)
+            words = lower_input.split()
+            keywords = [w for w in words if w not in ["clear", "delete", "memory", "about"]]
+
+            if not keywords:
+                deleted = self.helper.collection.delete_many({"category": "note"})
+                return f"🧹 Cleared {deleted.deleted_count} memory entries."
+
+            # Delete documents containing any keyword
+            keyword_filter = {"$or": [{"content": {"$regex": k, "$options": "i"}} for k in keywords]}
+            deleted = self.helper.collection.delete_many({
+                "category": "note",
+                **keyword_filter
+            })
+            return f"🧹 Cleared {deleted.deleted_count} memory entries containing: {', '.join(keywords)}."
+
+        # === Case 5: Fallback for anything else ===
+        if self.fallback_llm:
+            response = await self.fallback_llm.get_response(user_input)
+            return response
 
         return "I'm not sure what to do with that memory request."
+
+
+
+
 
 
