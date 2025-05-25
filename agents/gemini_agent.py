@@ -13,8 +13,17 @@ TOOL_TRIGGER_MAP = {
         "analyze board"
     ],
     "weather": ["weather", "forecast", "temperature"],
+    "rag_memory": ["remember", "what do you remember", "recall", "note"],
+    "car_maintenance": ["car", "oil", "filter", "maintenance", "jeep", "subaru", "mileage", "air filter"]
 }
 
+""" Example:
+    You: Remember I changed the Subaru oil at 42000 miles
+    Agent: Got it. Ill remember that.
+    You: What do you remember?
+    Agent:
+    • Remember I changed the Subaru oil at 42000 miles
+"""
 
 class GeminiAIAgent:
     def __init__(self, api_key, tools=None):

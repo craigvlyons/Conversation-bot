@@ -250,7 +250,16 @@ class ChatUI(QMainWindow):
 
     async def get_agent_response(self, text):
         response = await self.agent.get_response(text)
-        self.add_message("Jarvis", response)
+        
+        # OPTIONAL: Flag if this is a RAG/memory result
+        if isinstance(response, str) and (
+            "Got it. I’ll remember that." in response or
+            "Logged car maintenance info." in response or
+            "I'm not sure what to do with that memory request." not in response and "recall" in text.lower()
+        ):
+            self.add_message("Jarvis ", f"🧠 {response}")
+        else:
+            self.add_message("Jarvis", response)
 
         if self.mic_selected:
             # Run synthesize and play_audio in background thread to avoid blocking the UI
