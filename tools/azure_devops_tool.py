@@ -8,6 +8,7 @@ from .base_tool import BaseTool
 from models.devops_work_item_formatter import DevOpsWorkItemFormatter
 from pydantic_ai import Agent
 from pydantic_ai.models.gemini import GeminiModel
+from utils.azure_db_helper import AzureDevOpsDBHelper
 
 import dotenv
 dotenv.load_dotenv()
@@ -26,6 +27,7 @@ class AzureDevOpsTool(BaseTool):
         self._formatted_boards_cache = ""
         self.model = GeminiModel(model_name="gemini-1.5-flash", api_key=os.getenv("GEMINI_KEY"))
         self.agent = Agent(self.model)
+        self.db = AzureDevOpsDBHelper()
 
     def name(self):
         return "azure_devops"
