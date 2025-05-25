@@ -141,3 +141,19 @@ convo_bot/
 └── logs/                      # Log files for debugging
 ```
 
+---
+
+## Tools
+
+The `tools/` directory contains modular integrations and utilities that extend the bot's capabilities. Each tool is designed to be used by the agent for specific tasks:
+
+- **weather_tool.py**: Provides weather information for a given city using the Open-Meteo API. Handles city lookup, caching, and robust extraction from user queries.
+- **azure_devops_tool.py**: Integrates with Azure DevOps for operations like retrieving boards and adding tasks to work items. Uses Azure Function Apps and Personal Access Tokens (PAT) for authentication.
+- **car_maintenance_tool.py**: (If present) Handles queries related to car maintenance, such as scheduling, reminders, or diagnostics.
+- **mcp_tool.py**: Provides Multi-Channel Provider (MCP) integration, enabling the agent to interact with various external services or APIs in a unified way.
+- **playwright_client.py**: Enables browser automation and web interaction using Playwright, useful for scraping or automating web tasks.
+- **rag_memory_tool.py**: Implements Retrieval-Augmented Generation (RAG) memory, allowing the agent to store and retrieve contextual information for more coherent conversations.
+- **base_tool.py**: Defines the base class and interface for all tools, ensuring consistent integration with the agent framework.
+
+You can add your own tools to this directory by following the interface conventions in `base_tool.py`.
+
