@@ -8,3 +8,6 @@ class BaseTool(ABC):
     @abstractmethod
     async def run(self, user_input: str) -> str:
         pass
+
+    def triggers(self) -> list[str]:
+        return []

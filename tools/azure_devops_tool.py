@@ -4,18 +4,16 @@ import requests
 import logging
 import os
 
-from .base_tool import BaseTool
-from models.devops_work_item_formatter import DevOpsWorkItemFormatter
 from pydantic_ai import Agent
+from .base_tool import BaseTool
 from pydantic_ai.models.gemini import GeminiModel
 from utils.azure_db_helper import AzureDevOpsDBHelper
+from models.devops_work_item_formatter import DevOpsWorkItemFormatter
+from utils.constants import AZURE_FUNCTION_URL, AZURE_FUNCTION_APP_KEY, AZURE_DEVOPS_PAT
 
-import dotenv
-dotenv.load_dotenv()
 
-FUNCTION_BASE_URL = os.getenv("FUNCTION_BASE_URL")
-FUNCTION_APP_KEY = os.getenv("FUNCTION_APP_KEY")
-AZURE_DEVOPS_PAT = os.getenv("AZURE_DEVOPS_PAT")
+if not AZURE_FUNCTION_URL or not AZURE_FUNCTION_APP_KEY or not AZURE_DEVOPS_PAT:
+    raise ValueError("Required environment variables AZURE_FUNCTION_URL, AZURE_FUNCTION_APP_KEY, or AZURE_DEVOPS_PAT are not set.")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -31,6 +29,17 @@ class AzureDevOpsTool(BaseTool):
 
     def name(self):
         return "azure_devops"
+    
+    def triggers(self):
+        return ["azure devops",
+                "devops",
+                "get boards",
+                "work items",
+                "azure boards",
+                "add task",
+                "create tasks from board",
+                "analyze board"
+        ]
 
     async def run(self, user_input: str) -> str:
         normalized = user_input.lower()
@@ -51,7 +60,7 @@ class AzureDevOpsTool(BaseTool):
         headers = {
             "Authorization": f"Basic {base64.b64encode(auth_str.encode()).decode()}"
         }
-        url = f"{FUNCTION_BASE_URL}api/GetMyBoards?code={FUNCTION_APP_KEY}"
+        url = f"{AZURE_FUNCTION_URL}api/GetMyBoards?code={AZURE_FUNCTION_APP_KEY}"
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         logger.info("Boards fetched successfully.")
@@ -68,11 +77,11 @@ class AzureDevOpsTool(BaseTool):
     def _add_task(self, parent_id=9746, task_title="Task Title", task_description="Task Description"):
         auth = base64.b64encode(f":{AZURE_DEVOPS_PAT}".encode()).decode()
         headers = {
-            "x-functions-key": FUNCTION_APP_KEY,
+            "x-functions-key": AZURE_FUNCTION_APP_KEY,
             "Authorization": f"Basic {auth}",
             "Content-Type": "application/json"
         }
-        url = f"{FUNCTION_BASE_URL}/api/AddTaskToWorkItem"
+        url = f"{AZURE_FUNCTION_URL}/api/AddTaskToWorkItem"
         payload = {
             "parent_id": parent_id,
             "title": task_title,

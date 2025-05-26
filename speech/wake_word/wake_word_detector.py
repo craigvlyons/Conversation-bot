@@ -13,8 +13,8 @@ class WakeWordDetector:
         """
         self.access_key = access_key
         # wake_word/jarvis/Jarvis_en_windows_v3_0_0.ppn  C:\convo_bot\wake_word\jarvis\Jarvis_en_windows_v3_0_0.ppn
-        # C:\convo_bot\wake_word\jarvis\Jarvis_en_windows_v3_0_0.ppn  Effective Date: Feb 2, 2025
-        self.keyword_paths = ["C:/convo_bot/wake_word/jarvis/Jarvis_en_windows_v3_0_0.ppn"]  # Change this to your wake keyword path. 
+        # C:\convo_bot\speech\wake_word\jarvis\Jarvis_en_windows_v3_0_0.ppn
+        self.keyword_paths = ["C:/convo_bot/speech/wake_word/jarvis/Jarvis_en_windows_v3_0_0.ppn"]  # Change this to your wake keyword path. 
         self.sensitivities = sensitivities or [0.5] * len(self.keyword_paths)
         self.device_index = device_index
         self.porcupine = None
