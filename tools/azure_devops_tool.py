@@ -129,7 +129,7 @@ class AzureDevOpsTool(BaseTool):
         logger.info(f"Extracted parent_id: {_id}")
 
         # Find work item in database.
-        work_item = self.db.get_work_item_by_id(parent_id=_id)
+        work_item = self.db.get_work_item_by_id(id=_id)
         
         if not work_item:
             logger.warning(f"Work item with ID {_id} not found in database.")

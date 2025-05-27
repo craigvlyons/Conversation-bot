@@ -1,19 +1,36 @@
-
+```json
 [
   {
-    "title": "Check Existing Product Agreement",
-    "description": "Implement logic to check if the product already exists in an Agreement when receiving a new license message via the Call Home API. Determine if the existing Agreement Product is either active or inactive."
+    "title": "Analyze Current Stage History UI",
+    "description": "Review and understand the current implementation of the Stage History UI PCF control to determine how time durations are currently displayed."
   },
   {
-    "title": "Reactivation of Inactive Agreements",
-    "description": "If an inactive Agreement Product is found upon reinstallation, reactivate it. Ensure that the status of whether it was initially a trial or not remains unchanged."
+    "title": "Define Required Calculation Logic",
+    "description": "Develop the logic required to calculate the display of time in the format of {W} Months {X} Days {Y} Hours {Z} Minutes based on input in minutes."
   },
   {
-    "title": "Maintain Trial and Non-Trial Status",
-    "description": "Ensure that the existing Agreement Product retains its trial status if it was initially a trial, or its regular status if not, when reinstalling the product. This is to prevent resetting back to a trial period."
+    "title": "Implement Time Conversion",
+    "description": "Write the code to convert total minutes into months, days, hours, and minutes using the defined values: 1 month = 43800 minutes, 1 day = 1440 minutes, 1 hour = 60 minutes."
   },
   {
-    "title": "Preserve Unlocked End Date",
-    "description": "Ensure the Unlocked End Date for the Agreement is not reset or altered when checking for existing product licenses during reinstallation."
+    "title": "Integrate Conversion Logic into UI Control",
+    "description": "Integrate the newly developed conversion logic into the Stage History UI PCF Control so that time is displayed correctly in the desired format."
+  },
+  {
+    "title": "Add Validation for Minimum Display",
+    "description": "Ensure that any time duration less than one minute is appropriately reflected by implementing a validation rule to enforce a minimum display of one minute."
+  },
+  {
+    "title": "Conduct Unit Testing",
+    "description": "Develop and run unit tests to verify the accuracy and reliability of the time conversion logic and its integration into the Stage History UI."
+  },
+  {
+    "title": "Perform User Acceptance Testing",
+    "description": "Facilitate user acceptance testing to verify that the new time display format meets expectations and functions correctly for end users."
+  },
+  {
+    "title": "Documentation Update",
+    "description": "Update any relevant documentation related to the Stage History UI to reflect changes in the time display format, including any user guides and technical manuals."
   }
 ]
+```
