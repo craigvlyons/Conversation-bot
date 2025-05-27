@@ -13,9 +13,9 @@ fallback_agent = GPT4oAgent(api_key=OPENAI_KEY)
 secondary_agent = GeminiAIAgent2(api_key=GEMINI_KEY)
 
 # memory only
-memory_only_agent = GeminiAIAgent2(api_key=GEMINI_KEY)
-memory_tool = RAGMemoryTool(fallback_llm=fallback_agent)
-memory_only_agent.register_tool(memory_tool)
+# memory_only_agent = GeminiAIAgent2(api_key=GEMINI_KEY)
+# memory_tool = RAGMemoryTool(fallback_llm=fallback_agent)
+# memory_only_agent.register_tool(memory_tool)
 
 # Register them globally
 AgentRegistry.register("primary", primary_agent)
@@ -23,11 +23,11 @@ AgentRegistry.register("fallback", fallback_agent)
 AgentRegistry.register("gemini", primary_agent)
 AgentRegistry.register("gpt4o", fallback_agent)
 AgentRegistry.register("gemini2", secondary_agent)
-AgentRegistry.register("memory", memory_only_agent)
+# AgentRegistry.register("memory", memory_only_agent)
 
 # Tools can be shared or scoped to agents
 tools = [
-    AzureDevOpsTool(),
+    AzureDevOpsTool(agent=fallback_agent),
     WeatherTool(),
     RAGMemoryTool(fallback_llm=fallback_agent)
 ]

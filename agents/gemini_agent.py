@@ -14,8 +14,7 @@ class GeminiAIAgent(BaseAgent):
         super().__init__(name="gemini", tools=tools)
         self.model = GeminiModel(model_name="gemini-1.5-flash", api_key=api_key)
         self.agent = Agent(self.model)
-        self.tools = tools or []
-
+        
     async def get_response(self, user_input: str, history: Optional[str]=None):
         context =  f"{history}\nUser: {user_input}" if history else user_input
         normalized_input = context.lower()
