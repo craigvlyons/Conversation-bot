@@ -1,36 +1,19 @@
-```json
+
 [
   {
-    "title": "Design Button UI",
-    "description": "Design the UI for the 'Convert to License' button, ensuring it's visually consistent with the existing 'Cancel Product' button.  Consider placement, styling, and accessibility best practices for a Power Apps web page."
+    "title": "Check Existing Product Agreement",
+    "description": "Implement logic to check if the product already exists in an Agreement when receiving a new license message via the Call Home API. Determine if the existing Agreement Product is either active or inactive."
   },
   {
-    "title": "Implement Button Visibility Logic",
-    "description": "Implement conditional visibility for the 'Convert to License' button based on the 'Is Trial' field value.  The button should only appear when 'Is Trial' is 'Yes' in the Power Apps web page context."
+    "title": "Reactivation of Inactive Agreements",
+    "description": "If an inactive Agreement Product is found upon reinstallation, reactivate it. Ensure that the status of whether it was initially a trial or not remains unchanged."
   },
   {
-    "title": "Develop Conversion Overlay",
-    "description": "Create a visually appealing overlay to display during the conversion process. The overlay should inform the user that the conversion is in progress and provide a progress indicator if appropriate."
+    "title": "Maintain Trial and Non-Trial Status",
+    "description": "Ensure that the existing Agreement Product retains its trial status if it was initially a trial, or its regular status if not, when reinstalling the product. This is to prevent resetting back to a trial period."
   },
   {
-    "title": "Implement Conversion Logic",
-    "description": "Develop the backend functionality to handle the button click.  This involves updating the 'Is Trial' field, the 'tru_lockdatetime' field, and potentially other relevant fields in the Agreement Product/Item.  Reference the 'triggercancelevent' code for guidance."
-  },
-  {
-    "title": "Handle Backend Processing",
-    "description": "Implement logic to handle potential delays in backend processing. Display a message to the user indicating that backend processes might take some time. The message should clearly communicate the expected behavior."
-  },
-  {
-    "title": "Implement Success/Error Handling",
-    "description": "Implement error handling to gracefully manage potential issues during the conversion process.  Display appropriate messages to the user in case of success or failure and close the overlay accordingly."
-  },
-  {
-    "title": "Test Conversion Functionality",
-    "description": "Thoroughly test the 'Convert to License' button functionality in the Product Dev Sandbox Copy environment. This includes testing various scenarios, including successful conversions, error handling, and edge cases."
-  },
-  {
-    "title": "Deploy to Production (if applicable)",
-    "description": "Once testing is complete, deploy the updated Power App to the appropriate production environment, following established deployment procedures."
+    "title": "Preserve Unlocked End Date",
+    "description": "Ensure the Unlocked End Date for the Agreement is not reset or altered when checking for existing product licenses during reinstallation."
   }
 ]
-```

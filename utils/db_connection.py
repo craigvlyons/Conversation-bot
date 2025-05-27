@@ -4,13 +4,10 @@ from dotenv import load_dotenv
 import requests
 import json
 from urllib.parse import quote_plus
+from utils.constants import DB_PASSWORD, DB_USERNAME
 
-load_dotenv(override=True) 
 
 def get_mongo_client():
-    DB_USERNAME = os.getenv("DB_USERNAME", "devopsAgent")
-    DB_PASSWORD = os.getenv("DB_PASSWORD")
-
     # Properly escape username and password
     username = quote_plus(DB_USERNAME)
     password = quote_plus(DB_PASSWORD)

@@ -8,6 +8,9 @@ class CarMaintenanceTool:
 
     def name(self):
         return "car_maintenance"
+    
+    def triggers(self):
+        return ["car", "oil", "filter", "maintenance", "jeep", "subaru", "mileage", "air filter"]
 
     def _load(self):
         try:

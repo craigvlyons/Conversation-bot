@@ -7,6 +7,9 @@ from models.cities import get_city, City
 class WeatherTool(BaseTool):
     def name(self):
         return "weather"
+    
+    def triggers(self):
+        return ["weather", "forecast", "temperature"]
 
     async def run(self, user_input: str) -> str:
         city_name = await self.extract_location(user_input)

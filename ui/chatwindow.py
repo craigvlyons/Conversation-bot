@@ -9,11 +9,12 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt, QTimer, QEvent
-from stt.stt import STT
-from tts.KokoroTTS import KokoroTTS
+from speech.stt.stt import STT
+from speech.tts.KokoroTTS import KokoroTTS
 from recording.AutoRecorder import AudioRecorder
-from wake_word.wake_word_detector import WakeWordDetector
-from wake_word.wake_word_thread import WakeWordThread
+from speech.wake_word.wake_word_detector import WakeWordDetector
+from speech.wake_word.wake_word_thread import WakeWordThread
+from utils.constants import PRORCUPINE_KEY
 
 
 class Message:
@@ -41,7 +42,7 @@ class ChatUI(QMainWindow):
         self.tts = KokoroTTS()
         self.stt = STT()
         self.auto = AudioRecorder(silence_duration=2.0)
-        self.detector = WakeWordDetector(os.getenv("PRORCUPINE_KEY"), sensitivities=[0.7])
+        self.detector = WakeWordDetector(PRORCUPINE_KEY, sensitivities=[0.7])
         self.wake_thread = WakeWordThread(self.detector)
         self.wake_thread.wake_word_detected.connect(self.on_voice_triggered)
 
