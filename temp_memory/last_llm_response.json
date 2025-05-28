@@ -1,36 +1,28 @@
 ```json
 [
   {
-    "title": "Analyze Current Stage History UI",
-    "description": "Review and understand the current implementation of the Stage History UI PCF control to determine how time durations are currently displayed."
+    "title": "Develop Plugin for Agreement Product Update",
+    "description": "Create a new plugin in the TruNorth.Integration repository. This plugin should trigger a synchronous post-operation event upon updating the 'Trial' field in the Agreement Product table, specifically when its value changes to 'No'. The plugin should then call the specified service endpoint."
   },
   {
-    "title": "Define Required Calculation Logic",
-    "description": "Develop the logic required to calculate the display of time in the format of {W} Months {X} Days {Y} Hours {Z} Minutes based on input in minutes."
+    "title": "Send Message to Service Bus",
+    "description": "Upon the 'Trial' field update in the Agreement Product, generate and send a message to the Service Bus to notify related systems of the change in the agreement's trial status."
   },
   {
-    "title": "Implement Time Conversion",
-    "description": "Write the code to convert total minutes into months, days, hours, and minutes using the defined values: 1 month = 43800 minutes, 1 day = 1440 minutes, 1 hour = 60 minutes."
+    "title": "Set Up Service Bus Queue",
+    "description": "Create a new Service Bus Queue named 'CEAccountToBCCustomer' to handle the integration of customer data from the Agreement Product update process."
   },
   {
-    "title": "Integrate Conversion Logic into UI Control",
-    "description": "Integrate the newly developed conversion logic into the Stage History UI PCF Control so that time is displayed correctly in the desired format."
+    "title": "Add 'Send Unlocked Payment Email' Field",
+    "description": "Introduce a boolean field 'Send Unlocked Payment Email' in the Agreement Product table to track whether a notification email for unlocked payment setup needs to be sent."
   },
   {
-    "title": "Add Validation for Minimum Display",
-    "description": "Ensure that any time duration less than one minute is appropriately reflected by implementing a validation rule to enforce a minimum display of one minute."
+    "title": "Implement Customer Integration for Service Bus Queue",
+    "description": "Develop the integration logic for the 'CEAccountToBCCustomer' queue. This includes retrieving the Account based on the Account linked to the Agreement, creating the customer in the BC system, and updating the 'Send Unlocked Payment Email' field to 'Yes' once the process is complete."
   },
   {
-    "title": "Conduct Unit Testing",
-    "description": "Develop and run unit tests to verify the accuracy and reliability of the time conversion logic and its integration into the Stage History UI."
-  },
-  {
-    "title": "Perform User Acceptance Testing",
-    "description": "Facilitate user acceptance testing to verify that the new time display format meets expectations and functions correctly for end users."
-  },
-  {
-    "title": "Documentation Update",
-    "description": "Update any relevant documentation related to the Stage History UI to reflect changes in the time display format, including any user guides and technical manuals."
+    "title": "Reference Current Customer Creation Logic",
+    "description": "Utilize the existing customer creation logic from the 'TruNorth.Integration.CeInvoiceToBcSalesInvoice' project as a reference for processing accounts linked to the Agreement Product. Specifically, adapt the process that retrieves the Account from the Invoice to apply it to Agreements."
   }
 ]
 ```

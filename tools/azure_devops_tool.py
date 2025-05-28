@@ -3,7 +3,7 @@ import json
 import requests
 import logging
 import os
-
+import hashlib
 from .base_tool import BaseTool
 from models.devops_models import WorkItem, DevOpsTask
 from agents.registry import AgentRegistry
@@ -125,15 +125,15 @@ class AzureDevOpsTool(BaseTool):
         if not match:
             logger.warning("No work item ID found in user input.")
             return "No work item ID found in your input."
-        _id = int(match.group(1))
-        logger.info(f"Extracted parent_id: {_id}")
+        parent_id = int(match.group(1))
+        logger.info(f"Extracted parent_id: {parent_id}")
 
         # Find work item in database.
-        work_item = self.db.get_work_item_by_id(id=_id)
+        work_item = self.db.get_work_item_by_id(id=parent_id)
         
         if not work_item:
-            logger.warning(f"Work item with ID {_id} not found in database.")
-            return f"Work item with ID {_id} not found in database. Please run 'get boards' first."
+            logger.warning(f"Work item with ID {parent_id} not found in database.")
+            return f"Work item with ID {parent_id} not found in database. Please run 'get boards' first."
 
         # Get plain text version of the work item
         formatted = work_item.to_prompt_string()         
@@ -185,12 +185,14 @@ class AzureDevOpsTool(BaseTool):
                 logger.info(f"Processing task: {task}")
                 title = task.get("title")
                 description = task.get("description")
-                self._add_task(parent_id=_id, task_title=title, task_description=description)
+                self._add_task(parent_id=parent_id, task_title=title, task_description=description)
                 task_titles.append(title)
 
+                _id = hashlib.md5(f"{parent_id}-{title}".encode()).hexdigest()
                 # save to database
                 task_model = DevOpsTask(
-                    parent_id=_id,
+                    id=_id,
+                    parent_id=parent_id,
                     title=title,
                     description=description
                 )
@@ -199,15 +201,15 @@ class AzureDevOpsTool(BaseTool):
 
                 # Format and prepare for appending to file
                 appended_output.append(
-                    f"Task (Parent ID: {_id})\nTitle: {title}\nDescription: {description}\n{'-'*60}\n"
+                    f"Task (Parent ID: {parent_id})\nTitle: {title}\nDescription: {description}\n{'-'*60}\n"
                 )
 
             summary = ", ".join(task_titles)
-            logger.info(f"Successfully added tasks to work item {_id}: {summary}")
-            return f"Successfully added tasks to work item {_id}: {summary}"
+            logger.info(f"Successfully added tasks to work item {parent_id}: {summary}")
+            return f"Successfully added tasks to work item {parent_id}: {summary}"
         except Exception as e:
             logger.error(f"Failed to parse tasks from LLM response: {e}")
-            return f"Failed to parse tasks from LLM response: {e}\nRaw Response: {response.data}"
+            return f"Failed to parse tasks from LLM response: {e}\nRaw Response: {response}"
 
     def _list_board_ids(self):
         if not self._boards_cache:

@@ -20,13 +20,12 @@ class AzureDevOpsDBHelper:
         # logger.info("clear_all() called on AzureDevOpsDBHelper, collection cleared.")
 
     def log_task(self, devops_task: DevOpsTask):
-        _id = hashlib.md5(f"{devops_task.parent_id}-{devops_task.title}".encode()).hexdigest()
         timestamp = datetime.now(timezone.utc).isoformat()
 
         self.collection.replace_one(
-            {"_id": _id},
+            {"_id": devops_task.id},
             {
-                "_id": _id,
+                "_id": devops_task.id,
                 "parent_id": devops_task.parent_id,
                 "title": devops_task.title,
                 "description": devops_task.description,
