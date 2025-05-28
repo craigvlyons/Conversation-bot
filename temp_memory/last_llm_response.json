@@ -1,19 +1,28 @@
-
+```json
 [
   {
-    "title": "Check Existing Product Agreement",
-    "description": "Implement logic to check if the product already exists in an Agreement when receiving a new license message via the Call Home API. Determine if the existing Agreement Product is either active or inactive."
+    "title": "Develop Plugin for Agreement Product Update",
+    "description": "Create a new plugin in the TruNorth.Integration repository. This plugin should trigger a synchronous post-operation event upon updating the 'Trial' field in the Agreement Product table, specifically when its value changes to 'No'. The plugin should then call the specified service endpoint."
   },
   {
-    "title": "Reactivation of Inactive Agreements",
-    "description": "If an inactive Agreement Product is found upon reinstallation, reactivate it. Ensure that the status of whether it was initially a trial or not remains unchanged."
+    "title": "Send Message to Service Bus",
+    "description": "Upon the 'Trial' field update in the Agreement Product, generate and send a message to the Service Bus to notify related systems of the change in the agreement's trial status."
   },
   {
-    "title": "Maintain Trial and Non-Trial Status",
-    "description": "Ensure that the existing Agreement Product retains its trial status if it was initially a trial, or its regular status if not, when reinstalling the product. This is to prevent resetting back to a trial period."
+    "title": "Set Up Service Bus Queue",
+    "description": "Create a new Service Bus Queue named 'CEAccountToBCCustomer' to handle the integration of customer data from the Agreement Product update process."
   },
   {
-    "title": "Preserve Unlocked End Date",
-    "description": "Ensure the Unlocked End Date for the Agreement is not reset or altered when checking for existing product licenses during reinstallation."
+    "title": "Add 'Send Unlocked Payment Email' Field",
+    "description": "Introduce a boolean field 'Send Unlocked Payment Email' in the Agreement Product table to track whether a notification email for unlocked payment setup needs to be sent."
+  },
+  {
+    "title": "Implement Customer Integration for Service Bus Queue",
+    "description": "Develop the integration logic for the 'CEAccountToBCCustomer' queue. This includes retrieving the Account based on the Account linked to the Agreement, creating the customer in the BC system, and updating the 'Send Unlocked Payment Email' field to 'Yes' once the process is complete."
+  },
+  {
+    "title": "Reference Current Customer Creation Logic",
+    "description": "Utilize the existing customer creation logic from the 'TruNorth.Integration.CeInvoiceToBcSalesInvoice' project as a reference for processing accounts linked to the Agreement Product. Specifically, adapt the process that retrieves the Account from the Invoice to apply it to Agreements."
   }
 ]
+```

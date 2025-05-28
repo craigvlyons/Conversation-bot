@@ -30,7 +30,8 @@ class WorkItem(BaseModel):
         )
 
 class DevOpsTask(BaseModel):
-    parent_id: int
+    id: Optional[str] = None
+    parent_id: Optional[int] = None
     title: str
     description: Optional[str] = ""
     created_at: Optional[datetime] = None
