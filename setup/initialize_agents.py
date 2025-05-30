@@ -8,9 +8,9 @@ from tools.rag_memory_tool import RAGMemoryTool
 from utils.constants import GEMINI_KEY, OPENAI_KEY
 
 # Instantiate core agents
-primary_agent = GeminiAIAgent(api_key=GEMINI_KEY)
-fallback_agent = GPT4oAgent(api_key=OPENAI_KEY)
-secondary_agent = GeminiAIAgent2(api_key=GEMINI_KEY)
+primary_agent = GeminiAIAgent(api_key=GEMINI_KEY)       # Gemini - is probably good enough for basic tasks and cheap.
+fallback_agent = GPT4oAgent(api_key=OPENAI_KEY)         # GPT - is probably better for code, then Gemini
+secondary_agent = GeminiAIAgent2(api_key=GEMINI_KEY)    # Gemini2 - is probably better for more complex tasks, then Gemini 1.
 
 # memory only
 # memory_only_agent = GeminiAIAgent2(api_key=GEMINI_KEY)

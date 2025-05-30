@@ -304,7 +304,13 @@ class ChatUI(QMainWindow):
 
         # Transcribe
         speech = await loop.run_in_executor(None, self.stt.transcribe, "C:/convo_bot/recording/audio_out/output.wav")
-        self.add_message("User", speech)
+
+        # text in chat.
+        text = self.chat_input.toPlainText().strip()
+        # add any text in chat incase the user added more context befor speeking.
+        fullmessage = f"{speech} {text}"
+        # add to message list.
+        self.add_message("User", fullmessage)
 
         # Respond
         await self.get_agent_response(speech)
@@ -314,9 +320,9 @@ class ChatUI(QMainWindow):
         self.chat_input.setReadOnly(False)
         QApplication.processEvents()  # <-- Force UI update
 
-    async def get_response(self, user_input):
-        response = await self.agent.run(user_input)  # Use 'await' directly
-        return response.data
+    # async def get_response(self, user_input):
+    #     response = await self.agent.run(user_input)  # Use 'await' directly
+    #     return response.data
     
     def eventFilter(self, obj, event):
         if obj == self.chat_input and event.type() == QEvent.Type.KeyPress:

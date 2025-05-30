@@ -142,7 +142,8 @@ class AzureDevOpsTool(BaseTool):
         if self.agent:
             # Prompt Gemini to generate tasks
             prompt = (
-                "Given the following work item, generate a list of tasks with short titles and detailed descriptions.\n"
+                "Given the following Azure Devops work item, generate a list of tasks with short titles and detailed descriptions.\n"
+                "As a developer these work items will most likly be for something in the Micorsoft ecosystem, power apps, dataverse, plugins, actions, Azure functions.\n"
                 f"Work Item:\n{formatted}\n\n"
                 f"Additional User Context: {user_input}\n\n"
                 "Return the tasks in this JSON list format: [\n"
