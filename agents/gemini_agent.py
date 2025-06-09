@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class GeminiAIAgent(BaseAgent):
     def __init__(self, api_key, tools=None):
         super().__init__(name="gemini", tools=tools)
-        self.model = GeminiModel(model_name="gemini-1.5-flash", api_key=api_key)
+        self.model = GeminiModel(model_name="gemini-2.0-flash-lite", api_key=api_key)
         self.agent = Agent(self.model)
         
     async def get_response(self, user_input: str, history: Optional[str]=None):

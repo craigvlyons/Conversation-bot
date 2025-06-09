@@ -1,28 +1,27 @@
-```json
+
 [
   {
-    "title": "Develop Plugin for Agreement Product Update",
-    "description": "Create a new plugin in the TruNorth.Integration repository. This plugin should trigger a synchronous post-operation event upon updating the 'Trial' field in the Agreement Product table, specifically when its value changes to 'No'. The plugin should then call the specified service endpoint."
+    "title": "Create Account Portal Form",
+    "description": "Design a form for the customer portal to display basic account information, including fields such as account name, address, and contact details. Ensure the Account Number field is included and set to read-only."
   },
   {
-    "title": "Send Message to Service Bus",
-    "description": "Upon the 'Trial' field update in the Agreement Product, generate and send a message to the Service Bus to notify related systems of the change in the agreement's trial status."
+    "title": "Configure Basic Form in Portal",
+    "description": "Set up and expose the newly created Account Portal form as a Basic Form within the customer portal, ensuring it's accessible through the portal UI."
   },
   {
-    "title": "Set Up Service Bus Queue",
-    "description": "Create a new Service Bus Queue named 'CEAccountToBCCustomer' to handle the integration of customer data from the Agreement Product update process."
+    "title": "Add Top Menu Navigation Link",
+    "description": "Integrate a link to the Account Portal form in the top menu link set of the customer portal for easy access by users."
   },
   {
-    "title": "Add 'Send Unlocked Payment Email' Field",
-    "description": "Introduce a boolean field 'Send Unlocked Payment Email' in the Agreement Product table to track whether a notification email for unlocked payment setup needs to be sent."
+    "title": "Create 'Update Account' Web Role",
+    "description": "Define a new Web Role named 'Update Account' in the customer portal system, which will have specific permissions related to updating account information."
   },
   {
-    "title": "Implement Customer Integration for Service Bus Queue",
-    "description": "Develop the integration logic for the 'CEAccountToBCCustomer' queue. This includes retrieving the Account based on the Account linked to the Agreement, creating the customer in the BC system, and updating the 'Send Unlocked Payment Email' field to 'Yes' once the process is complete."
+    "title": "Set Table Permissions for Account Updates",
+    "description": "Configure table permissions that allow updates to the Account table, ensuring that these permissions are based on the parent value settings for security and integrity."
   },
   {
-    "title": "Reference Current Customer Creation Logic",
-    "description": "Utilize the existing customer creation logic from the 'TruNorth.Integration.CeInvoiceToBcSalesInvoice' project as a reference for processing accounts linked to the Agreement Product. Specifically, adapt the process that retrieves the Account from the Invoice to apply it to Agreements."
+    "title": "Assign Permissions to Web Role",
+    "description": "Link the configured table permissions for account updates to the 'Update Account' Web Role, ensuring users with this role can perform updates as intended."
   }
 ]
-```
