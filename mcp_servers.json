@@ -1,0 +1,34 @@
+{
+  "azure-devops": {
+    "url": "http://127.0.0.1:8000/sse",
+    "description": "Azure DevOps MCP Server",
+    "command": "python",
+    "args": [
+      "azure_devops_server.py"
+    ]
+  },
+  "playwright": {
+    "url": "http://127.0.0.1:8020/sse",
+    "description": "Playwright Browser MCP Server",
+    "command": "npx",
+    "args": [
+      "@playwright/mcp@latest"
+    ]
+  },
+  "filesystem": {
+    "description": "File system operations MCP Server",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-filesystem@latest"
+    ]
+  },
+  "brave-search": {
+    "description": "Brave Search MCP Server",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@modelcontextprotocol/server-brave-search@latest"
+    ]
+  }
+}

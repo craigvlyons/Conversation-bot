@@ -28,6 +28,11 @@ OPENAI_KEY = os.getenv("OPENAI_KEY")
 
 # Default to INFO unless overridden by environment variable
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+LOG_LEVEL_VALUE = getattr(logging, LOG_LEVEL)
 
-# Convert string to logging level constant
-LOG_LEVEL_VALUE = getattr(logging, LOG_LEVEL, logging.INFO)
+# MCP server configuration
+MCP_SERVERS = {
+    "azure-devops": {
+        "url": "http://127.0.0.1:8000/sse"
+    }
+}
