@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 import aiohttp
 import requests
 from aiohttp import ClientTimeout
+from utils.platform_config import get_platform_config
 
 logger = logging.getLogger(__name__)
 
@@ -224,11 +225,10 @@ class MCPServerManager:
             
         cmd_parts = server.command.split()
         
-        # On Windows, handle npx command specially
-        import platform
-        if platform.system() == "Windows" and cmd_parts[0] == "npx":
-            # Use npx.cmd instead of npx on Windows
-            cmd_parts[0] = "npx.cmd"
+        # Use platform-aware command resolution
+        platform_config = get_platform_config()
+        if cmd_parts:
+            cmd_parts[0] = platform_config.get_command_executable(cmd_parts[0])
             
         # Prepare environment variables
         env = os.environ.copy()

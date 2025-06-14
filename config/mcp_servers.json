@@ -10,7 +10,7 @@
   },  "playwright": {
     "description": "Playwright Browser MCP Server",
     "enabled": true,
-    "command": "npx.cmd",
+    "command": "npx",
     "args": [
       "@playwright/mcp@latest"
     ]
@@ -18,7 +18,7 @@
   "brave-search": {
     "description": "Brave Search MCP Server",
     "enabled": false,
-    "command": "npx.cmd",
+    "command": "npx",
     "args": [
       "-y",
       "@modelcontextprotocol/server-brave-search@latest"

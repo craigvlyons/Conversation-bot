@@ -1,6 +1,7 @@
 import sounddevice as sd
 import numpy as np
 from scipy.io.wavfile import write
+from utils.platform_config import get_audio_output_path
 
 class AudioRecorder:
     def __init__(self, samplerate=16000, silence_threshold=100, silence_duration=1.0, max_duration=30):
@@ -16,7 +17,7 @@ class AudioRecorder:
         self.silence_threshold = silence_threshold
         self.silence_duration = silence_duration
         self.max_duration = max_duration
-        self.audio_file = "C:/convo_bot/recording/audio_out/output.wav"
+        self.audio_file = get_audio_output_path()
 
     def is_silent(self, data):
         """

@@ -1,5 +1,6 @@
 import pvporcupine
 from pvrecorder import PvRecorder
+from utils.platform_config import get_wake_word_model_paths
 
 class WakeWordDetector:
     def __init__(self, access_key, sensitivities=None, device_index=-1):
@@ -12,9 +13,8 @@ class WakeWordDetector:
         :param device_index: Index of the microphone device (-1 for default)
         """
         self.access_key = access_key
-        # wake_word/jarvis/Jarvis_en_windows_v3_0_0.ppn  C:\convo_bot\wake_word\jarvis\Jarvis_en_windows_v3_0_0.ppn
-        # C:\convo_bot\speech\wake_word\jarvis\Jarvis_en_windows_v3_0_0.ppn
-        self.keyword_paths = ["C:/convo_bot/speech/wake_word/jarvis/Jarvis_en_windows_v3_0_0.ppn"]  # Change this to your wake keyword path. 
+        # Get platform-specific wake word model paths
+        self.keyword_paths = get_wake_word_model_paths()
         self.sensitivities = sensitivities or [0.5] * len(self.keyword_paths)
         self.device_index = device_index
         self.porcupine = None

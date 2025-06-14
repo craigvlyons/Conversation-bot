@@ -7,6 +7,7 @@ import soundfile as sf
 import time
 import textwrap
 import numpy as np
+from utils.platform_config import get_kokoro_model_path, get_kokoro_voices_dir, get_kokoro_output_dir
 
 
 
@@ -15,15 +16,15 @@ class KokoroTTS:
        
         # Setup device
         self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
-        self.model_path = "C:/convo_bot/Kokoro/kokoro-v0_19.pth"
+        self.model_path = get_kokoro_model_path()
         # Load model
         self.model = build_model(self.model_path, self.device)
 
         # Voice pack directory and output directory
-        self.voices_dir = "C:/convo_bot/Kokoro/voices"
-        self.output_dir = "C:/convo_bot/Kokoro/audio_out"
+        self.voices_dir = get_kokoro_voices_dir()
+        self.output_dir = get_kokoro_output_dir()
         self.audio_file = "output.wav"
-        self.audio_path = f"{self.output_dir}/{self.audio_file}"
+        self.audio_path = os.path.join(self.output_dir, self.audio_file)
 
         # Available voices
         self.voice_names = [
@@ -40,7 +41,7 @@ class KokoroTTS:
             raise ValueError("Invalid voice index")
 
         voice_name = self.voice_names[voice_index]
-        voicepack_path = f"{self.voices_dir}/{voice_name}.pt"
+        voicepack_path = os.path.join(self.voices_dir, f"{voice_name}.pt")
         output_path = self.audio_path
 
         # Clean up text
