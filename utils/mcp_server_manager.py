@@ -619,31 +619,98 @@ class MCPServerManager:
         return all_tools
     
     def discover_capabilities(self):
-        """Discover capabilities of connected servers using JSON-RPC"""
+        """Discover capabilities of connected servers - dynamic approach for any MCP server"""
         for server_id, server in self.connected_servers.items():
             print(f"🔍 Discovering capabilities for {server_id}...")
             
-            # Try to initialize the server via JSON-RPC
-            initialized = self._init_server(server)
-            if initialized:
-                print(f"  ✅ Initialized {server_id}")
-            else:
-                print(f"  ❌ Failed to initialize {server_id}")
+            # Dynamic server type detection
+            server_type = self._detect_server_type(server)
+            print(f"  📡 Detected server type: {server_type}")
             
-            # Discover tools via JSON-RPC
-            print(f"  🔧 Discovering tools...")
+            if server_type == "sse":
+                print(f"  💡 SSE-based MCP server detected")
+                print(f"  ⚠️ SSE tool discovery not yet implemented")
+                print(f"  💡 Tools will be available when proper SSE client is added")
+                # For now, set empty tools but don't fail
+                server.tools = {}
+                
+            elif server_type == "http":
+                print(f"  🌐 HTTP-based MCP server detected")
+                success = self._discover_tools_via_http(server)
+                if not success:
+                    print(f"  ⚠️ HTTP tool discovery failed, server may use different protocol")
+                    server.tools = {}
+                    
+            elif server_type == "websocket":
+                print(f"  🔌 WebSocket-based MCP server detected")
+                print(f"  ⚠️ WebSocket tool discovery not yet implemented")
+                server.tools = {}
+                
+            else:
+                print(f"  ❓ Unknown server type, attempting multiple protocols...")
+                # Try different approaches dynamically
+                success = self._try_multiple_discovery_methods(server)
+                if not success:
+                    print(f"  ⚠️ All discovery methods failed")
+                    server.tools = {}
+            
+            tools_count = len(server.tools) if server.tools else 0
+            print(f"✅ Server {server_id} ready - {tools_count} tools available")
+            
+    def _detect_server_type(self, server: MCPServer) -> str:
+        """Dynamically detect MCP server transport type"""
+        if not server.url:
+            return "unknown"
+            
+        # Check URL patterns
+        if '/sse' in server.url and not server.process:
+            return "sse"
+        elif server.process:
+            # Started by us, likely HTTP-based
+            return "http"
+        elif 'ws://' in server.url or 'wss://' in server.url:
+            return "websocket"
+        elif 'http://' in server.url or 'https://' in server.url:
+            return "http"
+        else:
+            return "unknown"
+            
+    def _discover_tools_via_http(self, server: MCPServer) -> bool:
+        """Attempt tool discovery via HTTP JSON-RPC"""
+        try:
+            # Try to initialize the server
+            initialized = self._init_server(server)
+            if not initialized:
+                print(f"    ❌ HTTP initialization failed")
+                return False
+                
+            print(f"    ✅ HTTP initialization successful")
+            
+            # Discover tools
             tools = self._discover_tools(server)
             if tools:
-                # Store tools in the server object
                 server.tools = {}
                 for tool in tools:
                     tool_name = tool.get('name')
                     if tool_name:
                         server.tools[tool_name] = tool
-                print(f"    Found {len(tools)} tools: {list(server.tools.keys())}")
+                print(f"    ✅ Discovered {len(tools)} tools via HTTP: {list(server.tools.keys())}")
+                return True
             else:
-                print(f"    No tools found")
+                print(f"    ⚠️ No tools returned from HTTP discovery")
+                return False
+                
+        except Exception as e:
+            print(f"    ❌ HTTP discovery error: {e}")
+            return False
             
-            print(f"✅ Connected to MCP server: {server_id}")
-            print(f"   Tools: {len(server.tools) if server.tools else 0}")
+    def _try_multiple_discovery_methods(self, server: MCPServer) -> bool:
+        """Try multiple discovery protocols for unknown servers"""
+        print(f"    🔄 Trying HTTP JSON-RPC...")
+        if self._discover_tools_via_http(server):
+            return True
+            
+        print(f"    🔄 HTTP failed, server may require SSE/WebSocket client")
+        print(f"    💡 This server is connected but tool discovery needs implementation")
+        return False
                 

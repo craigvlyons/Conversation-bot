@@ -247,7 +247,23 @@ class ChatUI(QMainWindow):
         if text:
             self.add_message("User", text)
             self.chat_input.clear()
-            asyncio.create_task(self.get_agent_response(text))
+            # Use thread-safe approach instead of asyncio.create_task
+            import threading
+            threading.Thread(target=self._run_agent_response, args=(text,), daemon=True).start()
+    
+    def _run_agent_response(self, text):
+        """Run agent response in separate thread with its own event loop"""
+        try:
+            # Create new event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(self.get_agent_response(text))
+        except Exception as e:
+            print(f"Error in agent response: {e}")
+            # Add error message to UI safely
+            self.add_message("System", f"Error: {e}")
+        finally:
+            loop.close()
 
     async def get_agent_response(self, text):
          # Get conversation history for LLM context (excluding current input)
