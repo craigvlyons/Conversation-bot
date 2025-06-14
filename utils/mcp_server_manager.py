@@ -386,7 +386,11 @@ class MCPServerManager:
             return False
         
         try:
-            sse_url = f"{server.url.rstrip('/')}/sse"
+            # Check if URL already ends with /sse, if not add it
+            if server.url.endswith('/sse'):
+                sse_url = server.url
+            else:
+                sse_url = f"{server.url.rstrip('/')}/sse"
             response = requests.get(sse_url, stream=True, timeout=3)
             return response.status_code == 200
         except Exception:
