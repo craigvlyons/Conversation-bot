@@ -535,15 +535,30 @@ class MCPServerManager:
                 "params": params
             }
             
+            print(f"  📡 Sending JSON-RPC request to: {jsonrpc_url}")
+            print(f"  📤 Method: {method}")
             response = requests.post(jsonrpc_url, json=payload, headers=headers, timeout=5)
+            print(f"  📥 Response status: {response.status_code}")
+            
             if response.status_code == 200:
                 result = response.json()
+                print(f"  📋 Response: {result}")
                 if "result" in result:
-                    return result["result"]
+                    tools_result = result["result"]
+                    print(f"  🔧 Tools in result: {len(tools_result) if isinstance(tools_result, list) else 'not a list'}")
+                    return tools_result
+                else:
+                    print(f"  ⚠️ No 'result' field in response")
+                    return []
             else:
-                print(f"Request failed: {response.status_code}")
+                print(f"  ❌ Request failed: {response.status_code}")
+                try:
+                    error_text = response.text
+                    print(f"  📄 Error response: {error_text}")
+                except:
+                    pass
         except Exception as e:
-            print(f"Error sending MCP request: {str(e)}")
+            print(f"  ❌ Error sending MCP request: {str(e)}")
         
         return []
     
@@ -604,37 +619,31 @@ class MCPServerManager:
         return all_tools
     
     def discover_capabilities(self):
-        """Discover capabilities of connected servers"""
+        """Discover capabilities of connected servers using JSON-RPC"""
         for server_id, server in self.connected_servers.items():
-            if server.url:
-                self._discover_server_capabilities(server)
-                
-    def _discover_server_capabilities(self, server: MCPServer):
-        """Discover capabilities of a specific server using its API"""
-        if not server.url:
-            return
-        
-        try:
-            # For URLs ending with /sse, use the base URL for capabilities
-            if server.url.endswith('/sse'):
-                base_url = server.url[:-4]  # Remove '/sse'
-            else:
-                base_url = server.url.rstrip('/')
+            print(f"🔍 Discovering capabilities for {server_id}...")
             
-            # Make a GET request to the server's capabilities endpoint
-            url = f"{base_url}/capabilities"
-            response = requests.get(url, timeout=5)
-            
-            if response.status_code == 200:
-                capabilities = response.json()
-                # Extract tools from the capabilities
-                if "tools" in capabilities:
-                    server.tools = capabilities["tools"]
-                    print(f"✅ Discovered {len(server.tools)} tools for {server.id}")
-                else:
-                    print(f"⚠️ No tools found in capabilities for {server.id}")
+            # Try to initialize the server via JSON-RPC
+            initialized = self._init_server(server)
+            if initialized:
+                print(f"  ✅ Initialized {server_id}")
             else:
-                print(f"❌ Failed to get capabilities for {server.id}: {response.status_code}")
+                print(f"  ❌ Failed to initialize {server_id}")
+            
+            # Discover tools via JSON-RPC
+            print(f"  🔧 Discovering tools...")
+            tools = self._discover_tools(server)
+            if tools:
+                # Store tools in the server object
+                server.tools = {}
+                for tool in tools:
+                    tool_name = tool.get('name')
+                    if tool_name:
+                        server.tools[tool_name] = tool
+                print(f"    Found {len(tools)} tools: {list(server.tools.keys())}")
+            else:
+                print(f"    No tools found")
+            
+            print(f"✅ Connected to MCP server: {server_id}")
+            print(f"   Tools: {len(server.tools) if server.tools else 0}")
                 
-        except Exception as e:
-            print(f"❌ Error discovering capabilities for {server.id}: {e}")
