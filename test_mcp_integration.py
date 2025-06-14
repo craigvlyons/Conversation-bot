@@ -35,8 +35,8 @@ async def test_mcp_integration():
         server_manager = MCPServerManager()
         logger.info(f"Loaded {len(server_manager.servers)} servers from config")
         
-        # Quick connection test (with short timeout)
-        server_manager.connect_to_servers(timeout=5)
+        # Connection test with timeout appropriate for Playwright MCP
+        server_manager.connect_to_servers(timeout=20)
         connected_count = len(server_manager.connected_servers)
         logger.info(f"Connected to {connected_count} MCP servers")
         

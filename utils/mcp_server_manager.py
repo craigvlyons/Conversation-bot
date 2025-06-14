@@ -66,7 +66,7 @@ class MCPServerManager:
         except FileNotFoundError:
             print(f"❌ MCP servers config not found: {self.config_path}")
     
-    def connect_to_servers(self, timeout=5):
+    def connect_to_servers(self, timeout=20):
         """Connect to MCP servers with timeout to avoid blocking indefinitely"""
         import threading
         
@@ -110,7 +110,7 @@ class MCPServerManager:
         still_running = [t for t in threads if t.is_alive()]
         if still_running:
             print(f"⚠️ {len(still_running)} servers still connecting, giving extra time...")
-            extra_wait = 3  # Give extra time for slow connections
+            extra_wait = 10  # Give extra time for slow connections like Playwright
             extra_start = time.time()
             
             while time.time() - extra_start < extra_wait and any(t.is_alive() for t in threads):
