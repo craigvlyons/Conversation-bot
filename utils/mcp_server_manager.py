@@ -150,9 +150,15 @@ class MCPServerManager:
             r'MCP server listening on (https?://[^\s]+)',
             r'listening on (https?://[^\s]+)',
             r'Server started at (https?://[^\s]+)',
-            # Adding specific pattern for Playwright MCP
             r'Listening on: (https?://[^\s]+)',
-            r'Running at (https?://[^\s]+)'
+            r'Running at (https?://[^\s]+)',
+            # Additional patterns for Playwright MCP
+            r'Started server on (https?://[^\s]+)',
+            r'Server available at (https?://[^\s]+)',
+            r'MCP Server listening on (https?://[^\s]+)',
+            r'.*server.*on.*(https?://[^\s]+)',
+            r'.*listening.*(https?://localhost:\d+)',
+            r'.*running.*(https?://127\.0\.0\.1:\d+)'
         ]
         
         # Check if we can read stdout from the process
@@ -166,12 +172,27 @@ class MCPServerManager:
                 # For Playwright MCP, we can just use a default URL
                 if server.id == "playwright":
                     # Wait a bit for the process to start
-                    time.sleep(2)
+                    time.sleep(3)
+                    # Try common ports for Playwright MCP
+                    possible_urls = [
+                        "http://localhost:3000",
+                        "http://localhost:8080", 
+                        "http://127.0.0.1:3000",
+                        "http://127.0.0.1:8080"
+                    ]
+                    
+                    for url in possible_urls:
+                        if self._test_url_basic(url):
+                            print(f"  Found working URL for Playwright MCP: {url}")
+                            return url
+                    
+                    # Default fallback
                     default_url = "http://localhost:3000"
                     print(f"  Using default URL for Playwright MCP: {default_url}")
                     return default_url
                 
                 # Read for up to timeout seconds for other servers
+                output_lines = []
                 while time.time() - start_time < timeout:
                     # Windows-compatible approach - just try to read a line without select
                     try:
@@ -182,17 +203,31 @@ class MCPServerManager:
                             time.sleep(0.1)
                             continue
                             
-                        decoded_line = line.decode('utf-8', errors='ignore')
-                        print(f"  Server output: {decoded_line.strip()}")
-                        
-                        # Check for URL in this line
-                        for pattern in patterns:
-                            match = re.search(pattern, decoded_line)
-                            if match:
-                                return match.group(1)
+                        decoded_line = line.decode('utf-8', errors='ignore').strip()
+                        if decoded_line:
+                            print(f"  Server output: {decoded_line}")
+                            output_lines.append(decoded_line)
+                            
+                            # Check for URL in this line
+                            for pattern in patterns:
+                                match = re.search(pattern, decoded_line, re.IGNORECASE)
+                                if match:
+                                    found_url = match.group(1) if match.groups() else match.group(0)
+                                    # Clean up the URL
+                                    found_url = re.search(r'https?://[^\s]+', found_url)
+                                    if found_url:
+                                        return found_url.group(0)
                     except Exception as e:
                         print(f"  Error reading line: {e}")
                         time.sleep(0.1)
+                
+                # If no URL found in patterns, try to extract any URL from all output
+                if output_lines:
+                    all_output = ' '.join(output_lines)
+                    url_match = re.search(r'https?://[^\s]+', all_output)
+                    if url_match:
+                        print(f"  Found URL in output: {url_match.group(0)}")
+                        return url_match.group(0)
                 
                 # If we got here, we timed out without finding URL
                 print(f"  No URL found in process output after {timeout} seconds")
@@ -281,6 +316,29 @@ class MCPServerManager:
             sse_url = f"{server.url.rstrip('/')}/sse"
             response = requests.get(sse_url, stream=True, timeout=3)
             return response.status_code == 200
+        except Exception:
+            return False
+    
+    def _test_url_basic(self, url: str) -> bool:
+        """Test basic URL connectivity without requiring specific endpoints"""
+        try:
+            # Try base URL first
+            response = requests.get(url, timeout=2)
+            if response.status_code == 200:
+                return True
+            
+            # Try common MCP endpoints
+            endpoints = ['/sse', '/health', '/status', '/']
+            for endpoint in endpoints:
+                try:
+                    test_url = f"{url.rstrip('/')}{endpoint}"
+                    response = requests.get(test_url, timeout=1)
+                    if response.status_code == 200:
+                        return True
+                except:
+                    continue
+            
+            return False
         except Exception:
             return False
     

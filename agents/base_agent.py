@@ -122,11 +122,16 @@ class BaseAgent(ABC):
             if tool_name_lower in user_lower:
                 return tool_name
             
-            # Check for keyword matches in description
-            if any(word in user_lower for word in description.split() if len(word) > 3):
-                # Basic relevance check
-                common_words = set(user_lower.split()) & set(description.split())
-                if len(common_words) >= 2:
+            # Check for keyword matches in description (more flexible)
+            description_words = [word for word in description.split() if len(word) > 2]
+            user_words = [word for word in user_lower.split() if len(word) > 2]
+            
+            # Check if any significant words from description appear in user input
+            common_words = set(user_words) & set(description_words)
+            if len(common_words) >= 1:
+                # Additional check for relevance keywords
+                relevance_keywords = ['browser', 'automation', 'navigate', 'open', 'click', 'screenshot', 'test']
+                if any(keyword in description for keyword in relevance_keywords):
                     return tool_name
         
         # Pattern-based matching for common tool types
@@ -134,13 +139,23 @@ class BaseAgent(ABC):
             'browser': ['open', 'navigate', 'visit', 'screenshot', 'click', 'type', 'browse'],
             'devops': ['work item', 'task', 'project', 'create', 'list', 'azure'],
             'search': ['search', 'find', 'query', 'lookup'],
-            'file': ['file', 'read', 'write', 'create', 'delete']
+            'file': ['file', 'read', 'write', 'create', 'delete'],
+            'test': ['test', 'browser', 'automation']  # Added for test tools
         }
         
+        # Check tool name/description against patterns
         for tool_name, tool_info in self.mcp_tools.items():
             tool_lower = tool_name.lower()
+            description_lower = tool_info.get("description", "").lower()
+            
             for category, keywords in tool_patterns.items():
-                if category in tool_lower:
+                # Check if category is in tool name or description
+                if category in tool_lower or category in description_lower:
+                    if any(keyword in user_lower for keyword in keywords):
+                        return tool_name
+                
+                # Also check if any pattern keywords are in the description
+                if any(keyword in description_lower for keyword in keywords):
                     if any(keyword in user_lower for keyword in keywords):
                         return tool_name
         

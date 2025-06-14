@@ -137,14 +137,30 @@ async def test_agent_tool_integration():
         # Create a test agent
         agent = GeminiAIAgent(api_key=GEMINI_KEY)
         
-        # Add some mock MCP tools
+        # Add some mock MCP tools that should trigger
         mock_tools = {
-            "test_tool": {
-                "description": "A test tool for browser automation",
+            "browser_navigate": {
+                "description": "Navigate to a URL using browser automation",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "url": {"type": "string", "description": "URL to navigate to"}
+                    }
+                }
+            },
+            "browser_screenshot": {
+                "description": "Take a screenshot of the current browser page",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            "test_automation_tool": {
+                "description": "Test tool for browser automation and testing",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "action": {"type": "string", "description": "Action to perform"}
                     }
                 }
             }
@@ -156,11 +172,18 @@ async def test_agent_tool_integration():
         
         agent.enable_mcp()
         
+        # Debug: Check what tools are registered
+        logger.info(f"Agent MCP enabled: {agent.mcp_enabled}")
+        logger.info(f"Agent MCP tools: {list(agent.mcp_tools.keys())}")
+        for tool_name, tool_info in agent.mcp_tools.items():
+            logger.info(f"  {tool_name}: {tool_info.get('description', 'No description')}")
+        
         # Test tool trigger detection
         test_inputs = [
             "open google.com",
             "take a screenshot", 
             "navigate to example.com",
+            "browser automation test",
             "what tools are available",
             "hello world"  # This should not trigger tools
         ]
