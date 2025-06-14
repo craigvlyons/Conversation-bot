@@ -75,8 +75,19 @@ class MCPServerManager:
         
         def connect_to_single_server(server_id, server):
             print(f"Connecting to MCP server: {server_id}")
-            results[server_id] = self._connect_to_server(server)
-            print(f"Connection attempt for {server_id} completed, result: {results[server_id]}")
+            try:
+                result = self._connect_to_server(server)
+                results[server_id] = result
+                print(f"Connection attempt for {server_id} completed, result: {result}")
+                
+                # If successful, immediately add to connected_servers
+                if result:
+                    self.connected_servers[server_id] = server
+                    print(f"✅ {server_id} added to connected servers")
+                
+            except Exception as e:
+                print(f"❌ Error connecting to {server_id}: {e}")
+                results[server_id] = False
             
         # Connect to each server in a separate thread to prevent blocking
         threads = []
@@ -95,31 +106,37 @@ class MCPServerManager:
         while time.time() - start_time < timeout and any(t.is_alive() for t in threads):
             time.sleep(0.1)
             
-        # Check which servers were successfully connected
-        for server_id, success in results.items():
-            if success:
-                self.connected_servers[server_id] = self.servers[server_id]
-                
-        # For any threads still running, give them a bit more time but don't fail completely
+        # Give any remaining threads a bit more time
         still_running = [t for t in threads if t.is_alive()]
         if still_running:
             print(f"⚠️ {len(still_running)} servers still connecting, giving extra time...")
-            time.sleep(2)  # Give extra time
+            extra_wait = 3  # Give extra time for slow connections
+            extra_start = time.time()
             
-            # Check results again
-            for server_id, success in results.items():
-                if success and server_id not in self.connected_servers:
-                    self.connected_servers[server_id] = self.servers[server_id]
+            while time.time() - extra_start < extra_wait and any(t.is_alive() for t in threads):
+                time.sleep(0.2)
             
-            # Log any servers that are still timing out
+            # Final check for any servers that finished during extra time
             for thread in threads:
                 if thread.is_alive():
                     server_id = thread.name.replace("connect-", "")
-                    print(f"⚠️ Connection to {server_id} still in progress, but continuing")
+                    print(f"⚠️ Connection to {server_id} still in progress after {timeout + extra_wait}s")
+                else:
+                    # Thread finished, check if it was successful
+                    server_id = thread.name.replace("connect-", "")
+                    if server_id in results and results[server_id]:
+                        print(f"✅ {server_id} connected during extra time")
                 
-        # Try to discover capabilities for servers that connected
+        # Report final connection status
+        connected_count = len(self.connected_servers)
+        print(f"📊 Final connection summary: {connected_count}/{len(self.servers)} servers connected")
+        
         if self.connected_servers:
-            print(f"Moving on with {len(self.connected_servers)} connected servers")
+            for server_id in self.connected_servers:
+                print(f"  ✅ {server_id}")
+            print(f"Moving on with {connected_count} connected servers")
+        else:
+            print("❌ No servers successfully connected")
     def _connect_to_server(self, server: MCPServer) -> bool:
         if server.url:
             print(f"🌐 Trying URL connection for {server.id}: {server.url}/sse")
