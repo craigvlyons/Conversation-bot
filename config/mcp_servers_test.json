@@ -1,0 +1,18 @@
+{
+  "azure-devops-test": {
+    "description": "Azure DevOps MCP Server (Test)",
+    "enabled": true,
+    "command": "python",
+    "args": [
+      "azure_devops_server.py"
+    ]
+  },
+  "playwright": {
+    "description": "Playwright Browser MCP Server",
+    "enabled": true,
+    "command": "npx",
+    "args": [
+      "@playwright/mcp@latest"
+    ]
+  }
+}

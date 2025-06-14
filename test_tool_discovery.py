@@ -23,9 +23,9 @@ def test_tool_discovery():
     logger.info("=== Testing Tool Discovery ===")
     
     try:
-        # Create server manager and connect
-        server_manager = MCPServerManager()
-        logger.info(f"Loaded {len(server_manager.servers)} servers from config")
+        # Create server manager with test config to avoid production conflicts
+        server_manager = MCPServerManager(config_path="./config/mcp_servers_test.json")
+        logger.info(f"Loaded {len(server_manager.servers)} servers from test config")
         
         # Connect to servers
         server_manager.connect_to_servers(timeout=10)

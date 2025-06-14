@@ -333,7 +333,7 @@ async def main():
     await runner.setup()
     
     host = "127.0.0.1"
-    port = 8000
+    port = 8001  # Use different port to avoid conflict with production server
     
     site = web.TCPSite(runner, host, port)
     await site.start()
