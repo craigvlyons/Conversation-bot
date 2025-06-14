@@ -1,159 +1,208 @@
-# Convo Bot: AI-Powered Voice Assistant
+# AI Conversation Bot with Dynamic MCP Integration
 
-**Almost completely open source and free Conversation Agent**
-Conversation Bot is a voice-controlled AI assistant that integrates wake word detection, speech-to-text (STT), text-to-speech (TTS), and a powerful Gemini AI model to provide intelligent, conversational responses. The system listens for a wake word, records user input, transcribes the speech, processes it using the Gemini AI model, and responds through a TTS engine.
+**Advanced voice-controlled AI assistant with dynamic tool integration and self-specializing agents**
 
----
-
-## Features
-
-- **Wake Word Detection**: Activates the bot when the user speaks a predefined wake word.
-- **Speech-to-Text (STT)**: OpenApi Whisper Converts recorded audio into text using an STT engine.
-- **AI-Powered Responses**: Leverages the Gemini AI model to generate intelligent and contextually relevant replies.
-- **Text-to-Speech (TTS)**: Synthesizes the AI-generated response into natural-sounding speech using Kokoro TTS.
-- **Custom Commands**: Includes a special command, `"Stop listening"`, to gracefully shut down the assistant.
+A sophisticated conversation bot that features wake word detection, speech processing, and a revolutionary **dynamic MCP (Model Context Protocol) integration system** that automatically discovers, integrates, and specializes with any MCP server without code changes.
 
 ---
 
-## Installation
+## 🌟 Key Features
 
-### 1. Clone the Repository
+### Core Functionality
+- **Wake Word Detection**: Activates with predefined wake words
+- **Speech-to-Text**: OpenAI Whisper for accurate transcription  
+- **Text-to-Speech**: Kokoro TTS for natural speech synthesis
+- **Multi-Agent AI**: Gemini-powered conversation with fallback agents
+
+### Revolutionary MCP Integration
+- **🔧 Dynamic Tool Discovery**: Automatically finds and integrates tools from any MCP server
+- **🧠 Self-Specializing Agents**: Creates domain expertise automatically based on available tools
+- **📡 Protocol-Aware**: Supports SSE, WebSocket, and HTTP protocols automatically
+- **🎯 Intelligent Routing**: Routes requests to specialized agents based on context
+- **⚡ Universal Tool Execution**: Execute any MCP tool without hard-coded handlers
+
+### Advanced Agent System
+- **Dynamic Specialization**: Agents automatically become experts in discovered tool domains
+- **Domain Expertise Injection**: Enhance any agent with specialized knowledge
+- **Intelligent Delegation**: Multi-agent orchestration with automatic selection
+- **Learning & Optimization**: Improves performance through usage patterns
+
+---
+
+## 🏗️ Architecture
+
+```
+User Voice → Wake Word → STT → Primary Agent → Intent Detection
+                                      ↓
+                               Tool Request Detected
+                                      ↓
+                              MCP Agent → Tool Router → Protocol Client → MCP Server
+                                      ↓         ↓            ↓              ↓
+                                [Specialized] [Dynamic]  [SSE/WS/HTTP]  [Real Tools]
+                                 [Agents]     [Handler]   [Auto-detect]
+```
+
+### Agent Hierarchy
+- **Primary Agent** (Gemini): Conversation + intent detection
+- **MCP Agent**: Dynamic tool discovery and execution
+- **Specialized Agents**: Auto-created domain experts
+- **Fallback Agents**: GPT-4 for complex tasks
+
+---
+
+## 🚀 Quick Start
+
+### 1. Clone & Setup
 ```bash
-git clone https://github.com/craigvlyons/Conversation-bot.git
+git clone <repository>
 cd Conversation-bot
-```
-# Windows
-```bash
+
+# Create virtual environment
 python -m venv venv
-venv\Scripts\activate
-```
+source venv/bin/activate  # On macOS/Linux
+# or venv\Scripts\activate on Windows
 
-# mac/Linux
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
 ```
 
----
+### 2. Environment Configuration
+Create `.env` file:
+```env
+GEMINI_KEY=your-gemini-api-key
+PRORCUPINE_KEY=your-picovoice-access-key
+OPENAI_KEY=your-openai-api-key
+PHONEMIZER_ESPEAK_LIBRARY=path-to-espeak-library
+PHONEMIZER_ESPEAK_PATH=path-to-espeak-executable
+```
 
-## Install eSpeak-ng 
-**For windows I downloaded the espeak-ng.msi**
-- [https://github.com/espeak-ng/espeak-ng/releases](https://github.com/espeak-ng/espeak-ng/releases) 
+### 3. Run the Application
+```bash
+# Universal launcher (recommended)
+python start_agent.py
 
-## Setup environment variables.
-- PRORCUPINE_KEY= "your-picovoice-access-key"
-- GEMINI_KEY= "your-gemini-api-key"
-- PHONEMIZER_ESPEAK_LIBRARY=C:\Program Files\eSpeak NG\libespeak-ng.dll
-- PHONEMIZER_ESPEAK_PATH=C:\Program Files\eSpeak NG\espeak-ng.exe
+# Platform-specific
+./start_agent.sh        # Mac/Linux  
+start_agent.bat         # Windows
 
----
-
-## Wake Word Detection (Picovoice)
-Picovoice provides a highly efficient wake word detection engine. To use it, you'll need an access key and potentially their SDK.
-- Website: https://picovoice.ai/
-- Documentation: https://picovoice.ai/docs/quick-start/
-- Access Key: You can sign up on the website and get a free trial key.
-- Create a wake word model and add the model to the wake_model folder.
-
-
-## Kokoro Text-to-Speech (TTS)
-Kokoro Repository:
-**if you have any issues with Kokoro Follow the Kokoro README.md.**
-- Kokoro is your text-to-speech engine. 
-- GitHub Repo (example): https://huggingface.co/hexgrad/Kokoro-82M
-
-
----
-
-## Resources
-
-- **Wake Word Detection (Picovoice)**:
-  - Website: [https://picovoice.ai/](https://picovoice.ai/)
-  - Documentation: [https://picovoice.ai/docs/quick-start/](https://picovoice.ai/docs/quick-start/)
-
-- **Speech-to-text**
-  - OpenApi Whisper
-
-- **Text-to-Speech (Kokoro)**:
-  - Repository: [https://huggingface.co/hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)
-
-- **Gemini AI Model**:
-  - API Documentation: Refer to your Gemini service provider.
-
-- **eSpeak NG (Phonemizer)**:
-  - Repository: [https://github.com/espeak-ng/espeak-ng](https://github.com/espeak-ng/espeak-ng)
-  - Download: [https://github.com/espeak-ng/espeak-ng/releases](https://github.com/espeak-ng/espeak-ng/releases)
-
-
----
-
-
-
-
-## Code Structure
-
-```plaintext
-convo_bot/
-│
-├── main.py                    # Entry point for the bot
-├── .env                       # Environment variables (not tracked by Git)
-├── README.md                  # Project documentation
-├── requirements.txt           # Python dependencies
-│
-├── agents/                    # AI agent/model logic
-│   └── gemini_agent.py        # Gemini agent wrapper
-│
-├── tools/                     # Tooling and integrations (e.g., MCP, Playwright)
-│   └── mcp_tool.py            # MCP (Multi-Channel Provider) tooling for agent
-│
-├── recording/                 # Audio recording components
-│   ├── AutoRecorder.py        # Handles audio recording
-│   └── audio_out/             # Directory for recorded audio files
-│
-├── stt/                       # Speech-to-text components
-│   └── stt.py                 # Handles transcription using OpenAI Whisper
-│
-├── tts/                       # Text-to-speech components
-│   └── KokoroTTS.py           # Synthesizes and plays TTS responses
-│
-├── wake_word/                 # Wake word detection components
-│   ├── wake_word_detector.py  # Detects wake words
-│   ├── wake_word_thread.py    # Wake word detection threading
-│   └── wake_model/            # Directory for wake word model files (.ppn)
-│
-├── ui/                        # User interface components
-│   ├── chatwindow.py          # Main chat window UI
-│   └── images/                # UI images/icons
-│
-├── Kokoro/                    # Kokoro TTS engine and models
-│   ├── KokoroTTS.py           # Synthesizes and plays TTS responses
-│   ├── models.py              # Kokoro-specific model utilities
-│   ├── istftnet.py            # Utility for audio decoding
-│   └── voices/                # Voice model files
-│
-├── models/                    # Local LLM models (optional)
-│   └── model_loader.py        # Loads and queries LLaMA or other LLMs
-│
-└── logs/                      # Log files for debugging
+# Direct execution
+python main.py
 ```
 
 ---
 
-## Tools
+## 🔧 MCP Server Configuration
 
-The `tools/` directory contains modular integrations and utilities that extend the bot's capabilities. Each tool is designed to be used by the agent for specific tasks:
+Add any MCP server to `config/mcp_servers.json`:
 
-- **weather_tool.py**: Provides weather information for a given city using the Open-Meteo API. Handles city lookup, caching, and robust extraction from user queries.
-- **azure_devops_tool.py**: Integrates with Azure DevOps for operations like retrieving boards and adding tasks to work items. Uses Azure Function Apps and Personal Access Tokens (PAT) for authentication.
-- **car_maintenance_tool.py**: (If present) Handles queries related to car maintenance, such as scheduling, reminders, or diagnostics.
-- **mcp_tool.py**: Provides Multi-Channel Provider (MCP) integration, enabling the agent to interact with various external services or APIs in a unified way.
-- **playwright_client.py**: Enables browser automation and web interaction using Playwright, useful for scraping or automating web tasks.
-- **rag_memory_tool.py**: Implements Retrieval-Augmented Generation (RAG) memory, allowing the agent to store and retrieve contextual information for more coherent conversations.
-- **base_tool.py**: Defines the base class and interface for all tools, ensuring consistent integration with the agent framework.
+```json
+{
+  "your-server": {
+    "description": "Your MCP Server",
+    "enabled": true,
+    "command": "npx",
+    "args": ["@your/mcp-server@latest"]
+  }
+}
+```
 
-You can add your own tools to this directory by following the interface conventions in `base_tool.py`.
+The system will automatically:
+1. 🔍 **Discover** all tools from your server
+2. 🧠 **Create** specialized agents for tool domains  
+3. 🎯 **Route** user requests to appropriate agents
+4. ⚡ **Execute** tools with the correct protocol
 
+---
+
+## 🧪 Testing
+
+```bash
+# Test core MCP functionality
+python tests/test_mcp_protocols.py
+
+# Test dynamic agent specialization  
+python tests/test_phase3_simple.py
+
+# Test specific integrations
+python tests/test_mcp_integration.py
+```
+
+---
+
+## 🎯 Current Tool Support
+
+### Azure DevOps (Working)
+- **get_work_items**: List work items
+- **create_work_item**: Create new work items
+- **update_work_item**: Update existing work items
+
+### Auto-Discovery Ready
+- **Playwright**: Browser automation (process-based)
+- **Any MCP Server**: Automatic integration
+
+---
+
+## 📁 Project Structure
+
+```
+conversation-bot/
+├── agents/                 # Agent implementations
+│   ├── dynamic_specialized_agent.py    # Self-specializing agents
+│   ├── mcp_agent.py                   # MCP-aware agent
+│   └── base_agent.py                  # Agent interface
+├── utils/                  # Core utilities
+│   ├── tool_manager.py               # Tool discovery & management
+│   ├── mcp_protocol_client.py        # Universal protocol client
+│   ├── domain_expertise_injector.py  # Agent enhancement
+│   └── intelligent_agent_delegator.py # Smart routing
+├── config/                 # Configuration
+│   └── mcp_servers.json             # MCP server definitions
+├── tests/                  # All test files
+└── PROJECT_SUMMARY.md      # Comprehensive project overview
+```
+
+---
+
+## 🌟 What Makes This Special
+
+### 🔮 **Dynamic Everything**
+- No hard-coded tool handlers
+- Automatic protocol detection  
+- Self-creating specialized agents
+- Universal tool execution
+
+### 🧠 **Intelligent Agent System**
+- Agents automatically specialize based on available tools
+- Domain expertise injection for any agent
+- Multi-agent delegation with learning
+- Context-aware tool routing
+
+### 📡 **Protocol Agnostic**
+- SSE (Server-Sent Events) support
+- WebSocket MCP communication
+- HTTP JSON-RPC fallback
+- Automatic protocol detection
+
+### ⚡ **Real Functionality**
+- Working SSE connection to Azure DevOps
+- 3 fully functional DevOps tools
+- End-to-end tool execution
+- Production-ready MCP integration
+
+---
+
+## 🤝 Contributing
+
+This project represents a breakthrough in dynamic MCP integration. The architecture is designed to be completely extensible - adding new MCP servers, tools, or agent types requires no code changes, only configuration updates.
+
+For detailed technical documentation, see `PROJECT_SUMMARY.md`.
+
+---
+
+## 📄 License
+
+This project is open source. Please check individual component licenses in their respective directories.
+
+---
+
+**Transform your conversation bot into a dynamic, tool-aware AI assistant that automatically adapts to any available capabilities!** 🚀
