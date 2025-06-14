@@ -3,9 +3,9 @@
     "url": "http://127.0.0.1:8000/sse",
     "description": "Azure DevOps MCP Server",
     "enabled": true,
-    "command": "python",
+    "command": "",
     "args": [
-      "azure_devops_server.py"
+      ""
     ]
   },
   "playwright": {

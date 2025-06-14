@@ -5,135 +5,120 @@ from datetime import datetime
 
 from agents.base_agent import BaseAgent
 from utils.mcp_server_manager import MCPServerManager
-from utils.mcp_client import MCPClient, ToolResponse
-from utils.mcp_tool_registry import MCPToolRegistry
-from utils.mcp_tool_factory import MCPToolFactory, MCPToolExecutor
-from utils.mcp_category_handlers import CategoryHandlerRegistry
-from utils.mcp_parameter_validation import ToolParameterValidator, ParameterTransformer, ToolResultFormatter
+from utils.tool_manager import ToolManager
+from utils.dynamic_tool_handler import DynamicToolHandler, ToolRouter
 
 class MCPAgent(BaseAgent):
     """
-    Agent that's aware of MCP capabilities.
-    Can discover, select, and execute MCP tools.
+    Modern MCP Agent using dynamic tool discovery and routing.
+    Automatically discovers and executes any MCP tool without hard-coded handlers.
     """
     
     def __init__(self, name: str = "mcp_agent", 
-                 server_manager: Optional[MCPServerManager] = None,
-                 tool_registry: Optional[MCPToolRegistry] = None):
+                 server_manager: Optional[MCPServerManager] = None):
         super().__init__(name)
         
-        # Set up MCP components
+        # Set up MCP components with new dynamic system
         self.server_manager = server_manager or MCPServerManager()
-        self.mcp_client = MCPClient()
-        self.tool_registry = tool_registry or MCPToolRegistry(self.mcp_client)
+        self.tool_manager = ToolManager(self.server_manager)
+        self.tool_handler = DynamicToolHandler(self.tool_manager)
+        self.tool_router = ToolRouter(self.tool_manager)
         
-        # Tool factory and executor
-        self.tool_factory = MCPToolFactory(self.mcp_client)
-        self.tool_executor = MCPToolExecutor(self.tool_factory)
-        
-        # Handlers and validators
-        self.category_handlers = CategoryHandlerRegistry()
-        self.parameter_validator = ToolParameterValidator()
-        self.parameter_transformer = ParameterTransformer()
-        self.result_formatter = ToolResultFormatter()
-        
-        # Track tool execution history
-        self.tool_execution_history = []
+        # Track initialization state
+        self.initialized = False
+        self.tools_discovered = False
         
         # Enable MCP by default
         self.enable_mcp()
     
-    def initialize(self):
-        """Initialize the agent by loading servers and tools"""
-        # The servers and connections should already be set up
-        # Just make sure the client has the server information
-        self.mcp_client.set_servers(self.server_manager.servers)
+    async def initialize(self):
+        """Initialize the agent by discovering tools from all connected servers"""
+        if self.initialized:
+            return
         
-        # Register tools from the MCP client
-        self.tool_registry.register_from_mcp_client()
+        print("🔧 Initializing MCP Agent with dynamic tool discovery...")
         
-        # Register MCP tools with the agent
-        all_tools = self.mcp_client.get_all_tools()
-        self.register_mcp_tools(all_tools)
+        # Discover all tools from connected servers
+        discovered_tools = await self.tool_manager.discover_all_tools()
+        
+        if discovered_tools:
+            # Register tools with the base agent
+            for tool_name, tool in discovered_tools.items():
+                self.register_mcp_tool(tool_name, {
+                    "description": tool.description,
+                    "schema": tool.schema,
+                    "server_id": tool.server_id,
+                    "metadata": tool.metadata
+                })
+            
+            self.tools_discovered = True
+            print(f"✅ MCP Agent initialized with {len(discovered_tools)} tools")
+        else:
+            print("⚠️ No tools discovered during MCP Agent initialization")
+        
+        self.initialized = True
 
     async def get_response(self, user_input: str, history=None) -> str:
         """
-        Process user input and return a response, potentially using MCP tools
+        Process user input using dynamic tool routing and execution.
         """
-        # If we have a primary agent attached, delegate to it by default
-        if hasattr(self, 'primary_agent') and self.primary_agent:
-            return await self.primary_agent.get_response(user_input, history)
+        # Ensure we're initialized
+        if not self.initialized:
+            await self.initialize()
         
-        # Basic handling if no primary agent is available
-        if "what tools" in user_input.lower() or "available tools" in user_input.lower():
-            all_tools = self.mcp_client.get_all_tools() if hasattr(self, 'mcp_client') else {}
-            if not all_tools:
-                return "No MCP tools are currently available."
+        # Handle tool information queries
+        if any(phrase in user_input.lower() for phrase in ["what tools", "available tools", "list tools", "show tools"]):
+            return self._get_tools_summary()
+        
+        # Try to route and execute a tool
+        try:
+            result = await self.tool_router.route_and_execute(user_input)
             
-            tool_list = "\n".join([f"- {name}: {info.get('description', 'No description')}" 
-                                  for name, info in all_tools.items()])
-            return f"Available MCP tools:\n{tool_list}"
-        
-        return "I'm the MCP Agent, but I need to be connected to other agents to process your request fully."
+            if result:
+                if result.success:
+                    return f"Tool executed successfully: {result.result}"
+                else:
+                    return f"Tool execution failed: {result.error}"
+            else:
+                return "No matching tools found for your request."
+                
+        except Exception as e:
+            return f"Error processing tool request: {str(e)}"
         
     def get_all_mcp_tools(self) -> Dict[str, Dict[str, Any]]:
         """
-        Get all MCP tools available from the client
+        Get all MCP tools available from the tool manager.
         
         Returns:
             Dictionary of tool details keyed by tool name
         """
-        if not hasattr(self, 'mcp_client') or not self.mcp_client:
-            return {}
-        
-        tools = self.mcp_client.get_all_tools()
+        discovered_tools = self.tool_manager.get_all_tools()
         result = {}
         
-        for name, details in tools.items():
+        for name, tool in discovered_tools.items():
             result[name] = {
                 "name": name,
-                "description": details.get("description", ""),
-                "parameters": details.get("parameters", {}),
-                "server_id": details.get("server", "unknown")
+                "description": tool.description,
+                "schema": tool.schema,
+                "server_id": tool.server_id,
+                "metadata": tool.metadata
             }
         
         return result
     
-    def register_mcp_tools(self, tools_dict: Dict[str, Any]):
-        """Register MCP tools with the agent"""
-        if not tools_dict:
-            return
-            
-        for tool_name, tool_info in tools_dict.items():
-            # Register the tool with the agent
-            self.register_tool(
-                tool_name,
-                tool_info.get("description", "No description available"),
-                self.execute_mcp_tool,
-                tool_info.get("parameters", {})
-            )
-            
-        # Log the registration
-        tool_names = list(tools_dict.keys())
-        print(f"Registered {len(tool_names)} MCP tools with {self.name}")
+    def _get_tools_summary(self) -> str:
+        """Get a formatted summary of all available tools."""
+        if not self.tools_discovered:
+            return "Tool discovery has not completed yet."
         
+        return self.tool_manager.get_tool_info_summary()
+    
     def register_mcp_tool(self, tool_name: str, tool_info: dict):
         """
-        Register an MCP tool with the agent
+        Register an MCP tool with the agent.
         """
-        if not hasattr(self, 'registered_tools'):
-            self.registered_tools = {}
-            
-        # Store tool info
-        self.registered_tools[tool_name] = tool_info
-        
-        # Add the tool to our capabilities
-        self.register_tool(
-            name=tool_name,
-            description=tool_info.get("description", f"Tool {tool_name}"),
-            function=self.execute_mcp_tool,  # All tools use the same executor
-            parameters=tool_info.get("parameters", {})
-        )
+        # Store tool info in the base agent's MCP tools registry
+        super().register_mcp_tool(tool_name, tool_info)
     
     def enable_mcp(self):
         """
@@ -142,30 +127,15 @@ class MCPAgent(BaseAgent):
         self.mcp_enabled = True
 
     async def execute_mcp_tool(self, tool_name: str, parameters: Dict[str, Any]) -> Any:
-        """Execute an MCP tool by name with parameters"""
+        """Execute an MCP tool using the dynamic tool handler."""
         try:
-            # Add to history
-            self.tool_execution_history.append({
-                "tool": tool_name,
-                "parameters": parameters,
-                "timestamp": datetime.now().isoformat()
-            })
+            # Execute the tool using our dynamic handler
+            result = await self.tool_handler.execute_tool(tool_name, parameters)
             
-            # Transform parameters if needed
-            transformed_params = self.parameter_transformer.transform(tool_name, parameters)
-            
-            # Validate parameters
-            self.parameter_validator.validate(tool_name, transformed_params)
-            
-            # Execute the tool
-            response: ToolResponse = await self.tool_executor.execute(
-                tool_name, 
-                **transformed_params
-            )
-            
-            # Format the result
-            formatted_result = self.result_formatter.format_result(tool_name, response)
-            
-            return formatted_result
+            if result.success:
+                return result.result
+            else:
+                return {"error": result.error}
+                
         except Exception as e:
             return {"error": str(e)}

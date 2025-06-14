@@ -419,55 +419,39 @@ class MCPServerManager:
         except Exception:
             return False
     
-    def discover_capabilities(self):
-        """Discover capabilities for all connected servers."""
+    def verify_server_connections(self):
+        """Verify that all connected servers are still responsive."""
+        print("🔍 Verifying server connections...")
+        
         for server_id, server in self.connected_servers.items():
-            print(f"🔍 Discovering capabilities for {server_id}...")
+            print(f"  📡 Checking {server_id}...")
             
-            # Try to initialize the server
-            initialized = self._init_server(server)
-            if initialized:
-                print(f"  ✅ Initialized {server_id}")
-            else:
-                print(f"  ❌ Failed to initialize {server_id}")
-            
-            # Discover tools
-            print(f"  🔧 Discovering tools...")
-            tools = self._discover_tools(server)
-            if tools:
-                # Store tools in the server object
-                server.tools = {}
-                for tool in tools:
-                    tool_name = tool.get('name')
-                    if tool_name:
-                        server.tools[tool_name] = tool
-                print(f"    Found {len(tools)} tools: {list(server.tools.keys())}")
-            else:
-                print(f"    No tools found")
-            
-            # Discover prompts
-            print(f"  📝 Discovering prompts...")
-            prompts = self._discover_prompts(server)
-            if prompts:
-                print(f"    Found {len(prompts)} prompts")
-            else:
-                print(f"    No prompts found")
-            
-            # Discover resources
-            print(f"  📁 Discovering resources...")
-            resources = self._discover_resources(server)
-            if resources:
-                print(f"    Found {len(resources)} resources")
-            else:
-                print(f"    No resources found")
-            
-            print(f"✅ Connected to MCP server: {server_id}")
-            print(f"   Tools: {len(tools) if tools else 0}")
-            print(f"   Prompts: {len(prompts) if prompts else 0}")
-            print(f"   Resources: {len(resources) if resources else 0}")
+            try:
+                # For process-based servers, check if process is still running
+                if server.process:
+                    if server.process.poll() is None:
+                        print(f"    ✅ Process running (PID: {server.process.pid})")
+                    else:
+                        print(f"    ❌ Process has terminated")
+                        continue
+                
+                # For URL-based servers, test connectivity
+                if server.url:
+                    if self._test_url_connection(server):
+                        print(f"    ✅ URL responsive ({server.url})")
+                    else:
+                        print(f"    ⚠️ URL not responding ({server.url})")
+                
+            except Exception as e:
+                print(f"    ❌ Error checking {server_id}: {e}")
+        
+        print("✅ Server connection verification complete")
     
     def _init_server(self, server: MCPServer) -> bool:
-        """Initialize an MCP server."""
+        """
+        Initialize an MCP server.
+        NOTE: This method is used by the ToolManager for tool discovery.
+        """
         if not server.url:
             print(f"No URL available for server")
             return False
@@ -503,7 +487,10 @@ class MCPServerManager:
             return False
     
     def _discover_tools(self, server: MCPServer) -> List[Dict]:
-        """Discover tools from an MCP server."""
+        """
+        Discover tools from an MCP server.
+        NOTE: This method is used by the ToolManager for dynamic tool discovery.
+        """
         return self._send_jsonrpc_request(server, "getTools", {})
     
     def _discover_prompts(self, server: MCPServer) -> List[Dict]:

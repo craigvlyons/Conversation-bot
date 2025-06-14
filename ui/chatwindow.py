@@ -15,6 +15,7 @@ from recording.AutoRecorder import AudioRecorder
 from speech.wake_word.wake_word_detector import WakeWordDetector
 from speech.wake_word.wake_word_thread import WakeWordThread
 from utils.constants import PRORCUPINE_KEY
+from services.tool_service import ToolService
 
 
 class Message:
@@ -38,6 +39,8 @@ class ChatUI(QMainWindow):
     def __init__(self, agent):
         super().__init__()
         self.agent = agent
+        # Initialize tool service for clean separation of concerns
+        self.tool_service = ToolService()
         # Connect signal to slot for thread-safe UI updates
         self.agent_response_ready.connect(self.add_message)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
@@ -291,9 +294,9 @@ class ChatUI(QMainWindow):
                     # Try the chat method if available
                     return self.agent.chat(text)
                 else:
-                    # If user asks about tools, provide MCP tool information
-                    if 'tool' in text.lower():
-                        return self._get_tools_info()
+                    # If user asks about tools, provide tool information via service layer
+                    if self.tool_service.is_tool_request(text):
+                        return self.tool_service.get_tools_summary()
                     else:
                         # List available methods for debugging
                         methods = [method for method in dir(self.agent) if not method.startswith('_') and callable(getattr(self.agent, method))]
@@ -302,41 +305,6 @@ class ChatUI(QMainWindow):
                 return "No agent available in UI"
         except Exception as e:
             return f"Agent call error: {e}"
-                        
-    def _get_tools_info(self):
-        """Get information about available tools"""
-        try:
-            info = []
-            
-            # Check for regular tools
-            if hasattr(self.agent, 'tools') and self.agent.tools:
-                info.append(f"Regular tools: {len(self.agent.tools)}")
-                for tool in self.agent.tools[:3]:  # Show first 3
-                    if hasattr(tool, 'name'):
-                        info.append(f"  - {tool.name()}")
-                        
-            # Check for MCP tools
-            if hasattr(self.agent, 'get_all_mcp_tools'):
-                mcp_tools = self.agent.get_all_mcp_tools()
-                if mcp_tools:
-                    info.append(f"MCP tools: {len(mcp_tools)}")
-                    for tool_name in list(mcp_tools.keys())[:3]:  # Show first 3
-                        info.append(f"  - {tool_name}")
-                else:
-                    info.append("MCP tools: 0 (SSE server tool discovery not yet implemented)")
-                    
-            # Check MCP status
-            if hasattr(self.agent, 'mcp_enabled'):
-                status = "enabled" if self.agent.mcp_enabled else "disabled"
-                info.append(f"MCP integration: {status}")
-                
-            if info:
-                return "\n".join(info)
-            else:
-                return "No tool information available"
-                
-        except Exception as e:
-            return f"Error getting tool info: {e}"
 
     async def get_agent_response(self, text):
          # Get conversation history for LLM context (excluding current input)
