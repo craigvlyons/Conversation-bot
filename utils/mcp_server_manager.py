@@ -100,11 +100,22 @@ class MCPServerManager:
             if success:
                 self.connected_servers[server_id] = self.servers[server_id]
                 
-        # Log any servers that timed out
-        for thread in threads:
-            if thread.is_alive():
-                server_id = thread.name.replace("connect-", "")
-                print(f"⚠️ Connection to {server_id} timed out, but continuing")
+        # For any threads still running, give them a bit more time but don't fail completely
+        still_running = [t for t in threads if t.is_alive()]
+        if still_running:
+            print(f"⚠️ {len(still_running)} servers still connecting, giving extra time...")
+            time.sleep(2)  # Give extra time
+            
+            # Check results again
+            for server_id, success in results.items():
+                if success and server_id not in self.connected_servers:
+                    self.connected_servers[server_id] = self.servers[server_id]
+            
+            # Log any servers that are still timing out
+            for thread in threads:
+                if thread.is_alive():
+                    server_id = thread.name.replace("connect-", "")
+                    print(f"⚠️ Connection to {server_id} still in progress, but continuing")
                 
         # Try to discover capabilities for servers that connected
         if self.connected_servers:
@@ -120,20 +131,32 @@ class MCPServerManager:
         if server.command:
             print(f"🚀 Starting {server.id} via command: {server.command}")
             if self._start_server_process(server):
-                # Give the server a moment to start and print its URL
+                # Give the server a moment to start
                 time.sleep(2)
-                # Now extract URL from process output if available
-                if server.process:
+                
+                # For Playwright and similar MCP servers, if process is running, consider it connected
+                if server.process and server.process.poll() is None:
+                    # Try to extract URL from process output
                     url = self._extract_url_from_process(server)
                     if url:
                         server.url = url
                         print(f"✅ Found server URL: {url}")
                         
-                        # Now test the URL connection
+                        # Test URL connection but don't fail if it doesn't respond
                         if self._test_url_connection(server):
                             print(f"✅ Verified connection to {server.id} via URL")
-                    print(f"✅ Started and connected to {server.id} via command")
-                return True
+                        else:
+                            print(f"⚠️ URL not responding yet, but process is running")
+                    else:
+                        # No URL found, but process is running - assume it's working
+                        server.url = f"http://localhost:3000"  # Default for MCP servers
+                        print(f"⚠️ No URL found in output, using default: {server.url}")
+                    
+                    print(f"✅ Started {server.id} via command (process running)")
+                    return True
+                else:
+                    print(f"❌ Process failed to start or exited early for {server.id}")
+                    return False
             print(f"❌ Command startup failed for {server.id}")
         
         print(f"❌ Failed to connect to MCP server: {server.id}")
@@ -169,27 +192,60 @@ class MCPServerManager:
             try:
                 start_time = time.time()
                 
-                # For Playwright MCP, we can just use a default URL
+                # For Playwright MCP, use a more patient approach
                 if server.id == "playwright":
-                    # Wait a bit for the process to start
-                    time.sleep(3)
-                    # Try common ports for Playwright MCP
-                    possible_urls = [
-                        "http://localhost:3000",
-                        "http://localhost:8080", 
-                        "http://127.0.0.1:3000",
-                        "http://127.0.0.1:8080"
-                    ]
+                    print(f"  Waiting for Playwright MCP to start...")
+                    # Give Playwright more time to start and capture output
+                    max_wait = 10
+                    start_wait = time.time()
                     
-                    for url in possible_urls:
-                        if self._test_url_basic(url):
-                            print(f"  Found working URL for Playwright MCP: {url}")
-                            return url
+                    while time.time() - start_wait < max_wait:
+                        # Check if process is still running
+                        if server.process.poll() is not None:
+                            print(f"  Playwright process exited early")
+                            break
+                        
+                        # Try to read output
+                        try:
+                            # Use a non-blocking approach to read available output
+                            import select
+                            if hasattr(select, 'select'):
+                                ready, _, _ = select.select([server.process.stdout], [], [], 0.5)
+                                if ready:
+                                    line = server.process.stdout.readline()
+                                    if line:
+                                        decoded_line = line.decode('utf-8', errors='ignore').strip()
+                                        if decoded_line:
+                                            print(f"  Playwright output: {decoded_line}")
+                                            # Look for URL in output
+                                            url_match = re.search(r'https?://[^\s]+', decoded_line)
+                                            if url_match:
+                                                found_url = url_match.group(0)
+                                                print(f"  Found URL in Playwright output: {found_url}")
+                                                return found_url
+                        except:
+                            # If select doesn't work (Windows), fall back to polling
+                            pass
+                        
+                        # Try common ports every few seconds
+                        if (time.time() - start_wait) % 2 < 0.5:
+                            possible_urls = [
+                                "http://localhost:3000",
+                                "http://localhost:8080", 
+                                "http://127.0.0.1:3000",
+                                "http://127.0.0.1:8080"
+                            ]
+                            
+                            for url in possible_urls:
+                                if self._test_url_basic(url):
+                                    print(f"  Found working Playwright URL: {url}")
+                                    return url
+                        
+                        time.sleep(0.5)
                     
-                    # Default fallback
-                    default_url = "http://localhost:3000"
-                    print(f"  Using default URL for Playwright MCP: {default_url}")
-                    return default_url
+                    # If we still haven't found a URL, return default but warn
+                    print(f"  No responsive URL found for Playwright, using default")
+                    return "http://localhost:3000"
                 
                 # Read for up to timeout seconds for other servers
                 output_lines = []
