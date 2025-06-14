@@ -1,48 +1,99 @@
-2025-06-14 12:56:42 - __main__ - INFO - Validating environment configuration...
-2025-06-14 12:56:42 - core.azure_devops_api - INFO - Environment validation successful
-2025-06-14 12:56:42 - __main__ - INFO - Environment configuration validated successfully
-INFO:     Started server process [18864]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:52703 - "POST /sse HTTP/1.1" 405 Method Not Allowed
-INFO:     127.0.0.1:52704 - "GET /sse HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52705 - "POST /messages/?session_id=fd55b5e20f4e43a786932d409b8ed5ce HTTP/1.1" 202 Accepted
-INFO:     127.0.0.1:52706 - "POST /messages/?session_id=fd55b5e20f4e43a786932d409b8ed5ce HTTP/1.1" 202 Accepted
-INFO:     127.0.0.1:52707 - "POST /messages/?session_id=fd55b5e20f4e43a786932d409b8ed5ce HTTP/1.1" 202 Accepted
-2025-06-14 12:56:49 - mcp.server.lowlevel.server - INFO - Processing request of type ListToolsRequest
-INFO:     127.0.0.1:52708 - "POST /messages/?session_id=fd55b5e20f4e43a786932d409b8ed5ce HTTP/1.1" 202 Accepted
-2025-06-14 12:56:49 - mcp.server.lowlevel.server - INFO - Processing request of type ListPromptsRequest
-INFO:     127.0.0.1:52724 - "GET /sse/sse HTTP/1.1" 404 Not Found
-INFO:     127.0.0.1:52858 - "GET /sse HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52908 - "GET /sse HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52927 - "GET /sse/capabilities HTTP/1.1" 404 Not Found
-INFO:     127.0.0.1:53109 - "GET /sse HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53123 - "GET /capabilities HTTP/1.1" 404 Not Found
-that is the server devops logg.
-
-
-(py312) PS C:\convo_bot> & c:/convo_bot/.venv/Scripts/python.exe c:/convo_bot/test_tool_discovery.py
-[2025-06-14 13:12:58,986] INFO - === Testing Tool Discovery ===
+(py312) PS C:\convo_bot> & c:/convo_bot/.venv/Scripts/python.exe c:/convo_bot/test_mcp_integration.py
+[2025-06-14 13:26:00,178] __main__ - INFO - Starting MCP Integration Tests
+[2025-06-14 13:26:00,179] __main__ - INFO - === Testing MCP Integration ===
+[2025-06-14 13:26:00,180] __main__ - INFO - 1. Testing MCP server connection...
 ⏭️ Skipping disabled server: brave-search
 ✅ Loaded 2 MCP servers from config
-[2025-06-14 13:12:58,987] INFO - Loaded 2 servers from config
+[2025-06-14 13:26:00,180] __main__ - INFO - Loaded 2 servers from config
 Connecting to MCP server: azure-devops
-🌐 Trying URL connection for azure-devops: http://127.0.0.1:8000/sse/sse
+🌐 Trying URL connection for azure-devops: http://127.0.0.1:8000/sse
 Connecting to MCP server: playwright
 🚀 Starting playwright via command: npx
-[2025-06-14 13:12:58,991] INFO - Platform detected: windows
-[2025-06-14 13:12:58,991] INFO - Project root: c:\convo_bot
-[2025-06-14 13:12:58,991] INFO - Base directory: c:\convo_bot
+[2025-06-14 13:26:00,185] utils.platform_config - INFO - Platform detected: windows
+[2025-06-14 13:26:00,186] utils.platform_config - INFO - Project root: c:\convo_bot
+[2025-06-14 13:26:00,186] utils.platform_config - INFO - Base directory: c:\convo_bot
 ✅ Connected to azure-devops via URL
-Starting MCP server: npx.cmd @playwright/mcp@latest
 Connection attempt for azure-devops completed, result: True
 ✅ azure-devops added to connected servers
+Starting MCP server: npx.cmd @playwright/mcp@latest
 C:\Python312\Lib\subprocess.py:1016: RuntimeWarning: line buffering (buffering=1) isn't supported in binary mode, the default buffer size will be used
   self.stdout = io.open(c2pread, 'rb', bufsize)
 C:\Python312\Lib\subprocess.py:1021: RuntimeWarning: line buffering (buffering=1) isn't supported in binary mode, the default buffer size will be used
   self.stderr = io.open(errread, 'rb', bufsize)
-  ✅ Process started (PID: 26960)
+  ✅ Process started (PID: 3124)
+  Waiting for Playwright MCP to start...
+  No responsive URL found for Playwright, using default
+✅ Found server URL: http://localhost:3000
+⚠️ URL not responding yet, but process is running
+✅ Started playwright via command (process running)
+Connection attempt for playwright completed, result: True
+✅ playwright added to connected servers
+📊 Final connection summary: 2/2 servers connected
+  ✅ azure-devops
+  ✅ playwright
+Moving on with 2 connected servers
+[2025-06-14 13:26:19,010] __main__ - INFO - Connected to 2 MCP servers
+[2025-06-14 13:26:19,011] __main__ - INFO -   Connected: azure-devops (URL: http://127.0.0.1:8000, Process: None)
+[2025-06-14 13:26:19,012] __main__ - INFO -   Connected: playwright (URL: http://localhost:3000, Process: 3124)
+[2025-06-14 13:26:19,019] __main__ - INFO - 2. Testing tool discovery...
+✅ Loaded MCP tools config from config/mcp_tools.json
+✅ Saved MCP tools config to config/mcp_tools.json
+[2025-06-14 13:26:19,045] __main__ - INFO - Discovered 0 tools
+[2025-06-14 13:26:19,046] __main__ - INFO - Available tools: []
+[2025-06-14 13:26:19,047] __main__ - WARNING - No tools discovered from MCP servers
+[2025-06-14 13:26:19,047] __main__ - WARNING - This is unexpected since servers did connect
+[2025-06-14 13:26:19,049] __main__ - INFO - 3. Testing MCP agent creation...
+[2025-06-14 13:26:19,053] __main__ - INFO - MCP agent has 0 tools
+[2025-06-14 13:26:19,053] __main__ - INFO - 4. Testing integration setup...
+[2025-06-14 13:26:19,054] __main__ - INFO - MCP integration configured
+[2025-06-14 13:26:19,055] __main__ - INFO - 6. Testing agent registration...
+[2025-06-14 13:26:19,055] __main__ - INFO - Agent registration successful
+[2025-06-14 13:26:19,056] __main__ - INFO - === MCP Integration Test Completed ===
+[2025-06-14 13:26:19,056] __main__ - INFO - ✅ Test PASSED: Servers connected successfully
+Shutting down MCP server: playwright
+  ✅ Server playwright terminated
+[2025-06-14 13:26:19,170] __main__ - INFO - Cleaned up MCP servers
+[2025-06-14 13:26:19,170] __main__ - INFO - === Testing Agent Tool Integration ===
+[2025-06-14 13:26:19,895] __main__ - INFO - Agent MCP enabled: True
+[2025-06-14 13:26:19,895] __main__ - INFO - Agent MCP tools: ['browser_navigate', 'browser_screenshot', 'test_automation_tool']
+[2025-06-14 13:26:19,896] __main__ - INFO -   browser_navigate: Navigate to a URL using browser automation
+[2025-06-14 13:26:19,896] __main__ - INFO -   browser_screenshot: Take a screenshot of the current browser page
+[2025-06-14 13:26:19,896] __main__ - INFO -   test_automation_tool: Test tool for browser automation and testing
+[2025-06-14 13:26:19,897] __main__ - INFO - Input: 'open google.com' -> Tool trigger: browser_navigate
+[2025-06-14 13:26:19,897] __main__ - INFO - Input: 'take a screenshot' -> Tool trigger: browser_screenshot
+[2025-06-14 13:26:19,898] __main__ - INFO - Input: 'navigate to example.com' -> Tool trigger: browser_navigate
+[2025-06-14 13:26:19,898] __main__ - INFO - Input: 'browser automation test' -> Tool trigger: browser_navigate
+[2025-06-14 13:26:19,899] __main__ - INFO - Input: 'what tools are available' -> Tool trigger: None   
+[2025-06-14 13:26:19,899] __main__ - INFO - Input: 'hello world' -> Tool trigger: None
+[2025-06-14 13:26:19,900] __main__ - INFO - Agent tool integration test completed
+[2025-06-14 13:26:19,900] __main__ - INFO - === Test Summary ===
+[2025-06-14 13:26:19,922] __main__ - INFO - MCP Integration Test: PASS
+[2025-06-14 13:26:19,928] __main__ - INFO - Agent Tool Integration Test: PASS
+[2025-06-14 13:26:19,931] __main__ - INFO - Overall Result: PASS
+(py312) PS C:\convo_bot> 
+
+
+(py312) PS C:\convo_bot> & c:/convo_bot/.venv/Scripts/python.exe c:/convo_bot/test_tool_discovery.py
+[2025-06-14 13:27:00,503] INFO - === Testing Tool Discovery ===
+⏭️ Skipping disabled server: brave-search
+✅ Loaded 2 MCP servers from config
+[2025-06-14 13:27:00,504] INFO - Loaded 2 servers from config
+Connecting to MCP server: azure-devops
+🌐 Trying URL connection for azure-devops: http://127.0.0.1:8000/sse
+Connecting to MCP server: playwright
+🚀 Starting playwright via command: npx
+[2025-06-14 13:27:00,508] INFO - Platform detected: windows
+[2025-06-14 13:27:00,509] INFO - Project root: c:\convo_bot
+[2025-06-14 13:27:00,509] INFO - Base directory: c:\convo_bot
+✅ Connected to azure-devops via URL
+Connection attempt for azure-devops completed, result: True
+✅ azure-devops added to connected servers
+Starting MCP server: npx.cmd @playwright/mcp@latest
+C:\Python312\Lib\subprocess.py:1016: RuntimeWarning: line buffering (buffering=1) isn't supported in binary mode, the default buffer size will be used
+  self.stdout = io.open(c2pread, 'rb', bufsize)
+C:\Python312\Lib\subprocess.py:1021: RuntimeWarning: line buffering (buffering=1) isn't supported in binary mode, the default buffer size will be used
+  self.stderr = io.open(errread, 'rb', bufsize)
+  ✅ Process started (PID: 49792)
   Waiting for Playwright MCP to start...
 ⚠️ 1 servers still connecting, giving extra time...
   No responsive URL found for Playwright, using default
@@ -57,19 +108,39 @@ Connection attempt for playwright completed, result: True
   ✅ azure-devops
   ✅ playwright
 Moving on with 2 connected servers
-[2025-06-14 13:13:17,871] INFO - Connected to 2 MCP servers
-[2025-06-14 13:13:17,872] INFO -   Connected: azure-devops (URL: http://127.0.0.1:8000/sse)
-[2025-06-14 13:13:17,874] INFO -   Connected: playwright (URL: http://localhost:3000)
-[2025-06-14 13:13:17,877] INFO - Discovering server capabilities...
-❌ Failed to get capabilities for azure-devops: 404
-❌ Error discovering capabilities for playwright: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: /capabilities (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001F90DA8CB60>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
-[2025-06-14 13:13:21,982] INFO -   azure-devops: 0 tools
-[2025-06-14 13:13:21,983] INFO -   playwright: 0 tools
-[2025-06-14 13:13:21,983] INFO - Total tools discovered: 0
-[2025-06-14 13:13:21,984] ERROR - ❌ Tool discovery FAILED - no tools found
+[2025-06-14 13:27:19,208] INFO - Connected to 2 MCP servers
+[2025-06-14 13:27:19,212] INFO -   Connected: azure-devops (URL: http://127.0.0.1:8000)
+[2025-06-14 13:27:19,233] INFO -   Connected: playwright (URL: http://localhost:3000)
+[2025-06-14 13:27:19,234] INFO - Discovering server capabilities...
+🔍 Discovering capabilities for azure-devops...
+Request failed: 404
+  ❌ Failed to initialize azure-devops
+  🔧 Discovering tools...
+  📡 Sending JSON-RPC request to: http://127.0.0.1:8000/jsonrpc
+  📤 Method: getTools
+  📥 Response status: 404
+  ❌ Request failed: 404
+  📄 Error response: Not Found
+    No tools found
+✅ Connected to MCP server: azure-devops
+   Tools: 0
+🔍 Discovering capabilities for playwright...
+Error sending MCP request: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: /jsonrpc (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001F594108D40>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+  ❌ Failed to initialize playwright
+  🔧 Discovering tools...
+  📡 Sending JSON-RPC request to: http://localhost:3000/jsonrpc
+  📤 Method: getTools
+  ❌ Error sending MCP request: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: /jsonrpc (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001F594109340>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+    No tools found
+✅ Connected to MCP server: playwright
+   Tools: 0
+[2025-06-14 13:27:27,462] INFO -   azure-devops: 0 tools
+[2025-06-14 13:27:27,463] INFO -   playwright: 0 tools
+[2025-06-14 13:27:27,463] INFO - Total tools discovered: 0
+[2025-06-14 13:27:27,464] ERROR - ❌ Tool discovery FAILED - no tools found
 Shutting down MCP server: playwright
   ✅ Server playwright terminated
-[2025-06-14 13:13:22,092] INFO - Cleaned up servers
+[2025-06-14 13:27:27,584] INFO - Cleaned up servers
 
 Test Result: FAIL
 (py312) PS C:\convo_bot> 
