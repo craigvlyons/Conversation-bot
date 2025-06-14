@@ -5,15 +5,15 @@ REM Get the directory where this batch file is located
 cd /d "%~dp0"
 
 REM Check if virtual environment exists
-if not exist "venv" (
+if not exist ".venv" (
     echo Virtual environment not found. Creating one...
-    python -m venv venv
+    python -m .venv venv
     echo Virtual environment created.
 )
 
 REM Activate virtual environment
 echo Activating virtual environment...
-call venv\Scripts\activate.bat
+call .venv\Scripts\activate.bat
 
 REM Check if requirements need to be installed (simple check)
 python -c "import PyQt6, torch, pvporcupine" 2>nul
