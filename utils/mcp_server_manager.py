@@ -139,7 +139,7 @@ class MCPServerManager:
             print("❌ No servers successfully connected")
     def _connect_to_server(self, server: MCPServer) -> bool:
         if server.url:
-            print(f"🌐 Trying URL connection for {server.id}: {server.url}/sse")
+            print(f"🌐 Trying URL connection for {server.id}: {server.url}")
             if self._test_url_connection(server):
                 print(f"✅ Connected to {server.id} via URL")
                 return True
