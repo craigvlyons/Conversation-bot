@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QTextEdit, QLabel, QPushButton, QScrollArea, QFrame
 )
 from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtCore import Qt, QTimer, QEvent
+from PyQt6.QtCore import Qt, QTimer, QEvent, pyqtSignal
 from speech.stt.stt import STT
 from speech.tts.KokoroTTS import KokoroTTS
 from recording.AutoRecorder import AudioRecorder
@@ -32,9 +32,14 @@ class Message:
 
 
 class ChatUI(QMainWindow):
+    # Signal for thread-safe UI updates
+    agent_response_ready = pyqtSignal(str, str)  # sender, message
+    
     def __init__(self, agent):
         super().__init__()
         self.agent = agent
+        # Connect signal to slot for thread-safe UI updates
+        self.agent_response_ready.connect(self.add_message)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.setFixedSize(540, 100)  # Start with small height
         self.old_pos = None
@@ -247,23 +252,50 @@ class ChatUI(QMainWindow):
         if text:
             self.add_message("User", text)
             self.chat_input.clear()
-            # Use thread-safe approach instead of asyncio.create_task
+            # Use simpler synchronous approach for now
             import threading
-            threading.Thread(target=self._run_agent_response, args=(text,), daemon=True).start()
+            threading.Thread(target=self._get_sync_agent_response, args=(text,), daemon=True).start()
     
-    def _run_agent_response(self, text):
-        """Run agent response in separate thread with its own event loop"""
+    def _get_sync_agent_response(self, text):
+        """Get agent response in synchronous manner to avoid event loop issues"""
         try:
-            # Create new event loop for this thread
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.get_agent_response(text))
+            # Convert async call to sync using run_in_executor or similar
+            response = self._call_agent_sync(text)
+            # Use signal for thread-safe UI update
+            self.agent_response_ready.emit("Agent", response)
         except Exception as e:
             print(f"Error in agent response: {e}")
-            # Add error message to UI safely
-            self.add_message("System", f"Error: {e}")
-        finally:
-            loop.close()
+            # Use signal for thread-safe error display
+            self.agent_response_ready.emit("System", f"Error: {e}")
+    
+    def _call_agent_sync(self, text):
+        """Call agent synchronously to avoid async/await issues"""
+        try:
+            # Get the agent from registry
+            from agents.registry import AgentRegistry
+            agent = AgentRegistry.get_active_agent()
+            
+            if agent:
+                # Call agent's synchronous method if available
+                if hasattr(agent, 'get_response_sync'):
+                    return agent.get_response_sync(text)
+                elif hasattr(agent, 'get_response'):
+                    # If only async method available, run it carefully
+                    import asyncio
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        result = loop.run_until_complete(agent.get_response(text))
+                        loop.close()
+                        return result
+                    except Exception as e:
+                        return f"Async error: {e}"
+                else:
+                    return "Agent has no response method available"
+            else:
+                return "No active agent available"
+        except Exception as e:
+            return f"Agent call error: {e}"
 
     async def get_agent_response(self, text):
          # Get conversation history for LLM context (excluding current input)
