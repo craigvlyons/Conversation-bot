@@ -13,6 +13,28 @@ class MCPToolRegistry:
     
     CONFIG_PATH = "config/mcp_tools.json"
     
+    # Tool categorization patterns
+    CATEGORY_PATTERNS = {
+        "browser": [
+            r"browser_", r"playwright", r"click", r"type", r"navigate", 
+            r"screenshot", r"tab", r"hover", r"select"
+        ],
+        "devops": [
+            r"azure", r"devops", r"work_item", r"pull_request", r"repository",
+            r"pipeline", r"build", r"deploy"
+        ],
+        "filesystem": [
+            r"file", r"directory", r"folder", r"path", r"read", r"write", 
+            r"create", r"delete", r"list"
+        ],
+        "search": [
+            r"search", r"find", r"query", r"lookup", r"discover"
+        ],
+        "utility": [
+            r"util", r"format", r"convert", r"parse", r"transform"
+        ]
+    }
+    
     def __init__(self, mcp_client: MCPClient = None, config_path: str = None):
         self.mcp_client = mcp_client or MCPClient()
         self.config_path = config_path or self.CONFIG_PATH
@@ -69,47 +91,108 @@ class MCPToolRegistry:
             print(f"❌ Error saving MCP tools config: {e}")
             return False
     
+    def auto_categorize_tool(self, tool_name: str, tool_description: str = None) -> str:
+        """Automatically categorize a tool based on its name and description"""
+        name_lower = tool_name.lower()
+        desc_lower = tool_description.lower() if tool_description else ""
+        
+        # Try to match against category patterns
+        for category, patterns in self.CATEGORY_PATTERNS.items():
+            for pattern in patterns:
+                if re.search(pattern, name_lower) or (desc_lower and re.search(pattern, desc_lower)):
+                    return category
+        
+        # Default category if no match found
+        return "other"
+    
+    def register_tool_with_category(self, tool_name: str, metadata: Dict[str, Any], 
+                                   category: str = None) -> str:
+        """Register a tool with a category"""
+        # Auto-categorize if no category provided
+        if not category:
+            category = self.auto_categorize_tool(tool_name, metadata.get("description", ""))
+        
+        # Add to metadata
+        self.tool_metadata[tool_name] = metadata
+        self.enabled_tools[tool_name] = True
+        
+        # Add to category
+        if category not in self.tool_categories:
+            self.tool_categories[category] = []
+        
+        if tool_name not in self.tool_categories[category]:
+            self.tool_categories[category].append(tool_name)
+            
+        return category
+    
     def register_from_mcp_client(self) -> int:
-        """Register all tools from the MCP client"""
-        if not self.mcp_client:
-            print("❌ No MCP client provided")
+        """Register tools from the MCP client"""
+        try:
+            # Load the config first
+            self.load_config()
+            
+            # Get all tools from the MCP client
+            all_tools = self.mcp_client.get_all_tools()
+            
+            # Register each tool
+            for tool_name, tool_info in all_tools.items():
+                # Skip tools that are explicitly disabled
+                if tool_name in self.enabled_tools and not self.enabled_tools[tool_name]:
+                    print(f"⏭️ Skipping disabled tool: {tool_name}")
+                    continue
+                
+                # Store tool metadata
+                self.tool_metadata[tool_name] = tool_info
+                
+                # Set tool as enabled by default
+                if tool_name not in self.enabled_tools:
+                    self.enabled_tools[tool_name] = True
+                
+                # Auto-categorize the tool if not already categorized
+                server_name = tool_info.get("server", "unknown")
+                tool_description = tool_info.get("description", "")
+                
+                # Check if the tool is already in a category
+                categorized = False
+                for category, tools in self.tool_categories.items():
+                    if tool_name in tools:
+                        categorized = True
+                        break
+                
+                # If not categorized, auto-categorize based on name/description
+                if not categorized:
+                    category = self.auto_categorize_tool(tool_name, tool_description)
+                    if category not in self.tool_categories:
+                        self.tool_categories[category] = []
+                    if tool_name not in self.tool_categories[category]:
+                        self.tool_categories[category].append(tool_name)
+            
+            # Save the config
+            self.save_config()
+            
+            return len(all_tools)
+            
+        except Exception as e:
+            print(f"❌ Error registering tools from MCP client: {e}")
             return 0
-        
-        all_tools = self.mcp_client.get_all_tools()
-        if not all_tools:
-            print("❌ No tools found in MCP client")
-            return 0
-        
-        # Load existing config if any
-        self.load_config()
-        
-        count = 0
-        for tool_name, tool in all_tools.items():
-            if self.register_tool(tool_name, tool):
-                count += 1
-        
-        # Save the updated config
-        self.save_config()
-        
-        print(f"✅ Registered {count} tools from MCP client")
-        return count
     
     def register_tool(self, name: str, tool_info: Dict[str, Any]) -> bool:
         """Register a single tool"""
         try:
             # Add tool metadata
-            self.tool_metadata[name] = {
+            metadata = {
                 "name": name,
                 "description": tool_info.get("description", ""),
                 "server": tool_info.get("server", "unknown"),
                 "schema": tool_info.get("schema", {})
             }
             
+            # Auto-categorize the tool
+            category = self.auto_categorize_tool(name, metadata["description"])
+            self.register_tool_with_category(name, metadata, category)
+            
             # Enable the tool by default
             self.enabled_tools[name] = True
-            
-            # Categorize the tool based on name and server
-            self._categorize_tool(name, tool_info)
             
             return True
             
@@ -117,64 +200,18 @@ class MCPToolRegistry:
             print(f"❌ Error registering tool {name}: {e}")
             return False
     
-    def _categorize_tool(self, name: str, tool_info: Dict[str, Any]):
-        """Categorize a tool based on its name, description, and server"""
-        # Initialize categories if not already done
-        if not self.tool_categories:
-            self.tool_categories = {
-                "browser": [],
-                "devops": [],
-                "filesystem": [],
-                "search": [],
-                "utility": [],
-                "other": []
-            }
-        
-        # Determine category based on tool name, description and server
-        server = tool_info.get("server", "").lower()
-        description = tool_info.get("description", "").lower()
-        name_lower = name.lower()
-        
-        # Check if already categorized
-        is_categorized = False
-        for category, tools in self.tool_categories.items():
-            if name in tools:
-                is_categorized = True
-                break
-        
-        if is_categorized:
-            return
-        
-        # Categorize based on patterns
-        if any(x in name_lower for x in ["browser", "playwright"]) or "playwright" in server:
-            self.add_tool_to_category(name, "browser")
-        elif any(x in name_lower for x in ["devops", "azure"]) or "azure-devops" in server:
-            self.add_tool_to_category(name, "devops")
-        elif any(x in name_lower for x in ["file", "dir", "path"]) or "filesystem" in server:
-            self.add_tool_to_category(name, "filesystem")
-        elif any(x in name_lower for x in ["search", "find", "query"]) or "search" in server:
-            self.add_tool_to_category(name, "search")
-        elif any(x in name_lower for x in ["util", "format", "convert", "parse"]):
-            self.add_tool_to_category(name, "utility")
-        else:
-            self.add_tool_to_category(name, "other")
-    
-    def add_tool_to_category(self, tool_name: str, category: str):
-        """Add a tool to a specific category"""
-        if category not in self.tool_categories:
-            self.tool_categories[category] = []
-        
-        if tool_name not in self.tool_categories[category]:
-            self.tool_categories[category].append(tool_name)
-    
-    def remove_tool_from_category(self, tool_name: str, category: str):
-        """Remove a tool from a specific category"""
-        if category in self.tool_categories and tool_name in self.tool_categories[category]:
-            self.tool_categories[category].remove(tool_name)
-    
     def get_tool_by_name(self, name: str) -> Optional[Dict[str, Any]]:
         """Get tool metadata by name"""
         return self.tool_metadata.get(name)
+    
+    def find_tool_by_pattern(self, pattern: str) -> List[str]:
+        """Find tools matching a regex pattern"""
+        try:
+            regex = re.compile(pattern, re.IGNORECASE)
+            return [name for name in self.tool_metadata.keys() 
+                    if regex.search(name)]
+        except:
+            return []
     
     def get_tools_by_category(self, category: str) -> List[Dict[str, Any]]:
         """Get all tools in a category"""
@@ -226,62 +263,148 @@ class MCPToolRegistry:
         Args:
             filters: Keyword arguments for filtering, such as:
                 - category: Filter by category name
-                - server: Filter by server name
+                - pattern: Filter by name pattern
                 - enabled: Filter by enabled status
-                - name_pattern: Regex pattern to match tool names
-                - description_pattern: Regex pattern to match descriptions
-        
-        Returns:
-            List of tool metadata dictionaries that match the filters
+                - server: Filter by server name
         """
-        tools = []
+        tools = list(self.tool_metadata.values())
         
-        # Start with all tools
-        tool_names = list(self.tool_metadata.keys())
-        
-        # Filter by category
+        # Apply category filter
         if "category" in filters:
             category = filters["category"]
             if category in self.tool_categories:
-                tool_names = [name for name in tool_names if name in self.tool_categories[category]]
+                tool_names = self.tool_categories[category]
+                tools = [t for t in tools if t["name"] in tool_names]
         
-        # Filter by server
-        if "server" in filters:
-            server = filters["server"]
-            tool_names = [name for name in tool_names if 
-                         self.tool_metadata.get(name, {}).get("server") == server]
+        # Apply pattern filter
+        if "pattern" in filters:
+            pattern = filters["pattern"]
+            try:
+                regex = re.compile(pattern, re.IGNORECASE)
+                tools = [t for t in tools if regex.search(t["name"]) or regex.search(t.get("description", ""))]
+            except:
+                pass
         
-        # Filter by enabled status
+        # Apply enabled filter
         if "enabled" in filters:
             enabled = filters["enabled"]
-            tool_names = [name for name in tool_names if self.enabled_tools.get(name, False) == enabled]
+            tools = [t for t in tools if self.is_tool_enabled(t["name"]) == enabled]
         
-        # Filter by name pattern
-        if "name_pattern" in filters:
-            pattern = filters["name_pattern"]
-            tool_names = [name for name in tool_names if re.search(pattern, name, re.IGNORECASE)]
-        
-        # Filter by description pattern
-        if "description_pattern" in filters:
-            pattern = filters["description_pattern"]
-            tool_names = [name for name in tool_names if 
-                         re.search(pattern, self.tool_metadata.get(name, {}).get("description", ""), re.IGNORECASE)]
-        
-        # Get metadata for matching tools
-        for name in tool_names:
-            if name in self.tool_metadata:
-                tools.append(self.tool_metadata[name])
+        # Apply server filter
+        if "server" in filters:
+            server = filters["server"]
+            tools = [t for t in tools if t.get("server") == server]
         
         return tools
     
+    def get_all_tools(self) -> Dict[str, Dict[str, Any]]:
+        """Get all tool metadata"""
+        return self.tool_metadata
+    
+    def get_tools_for_agent(self) -> Dict[str, Dict[str, Any]]:
+        """Get all enabled tools for agent consumption"""
+        return {name: tool for name, tool in self.tool_metadata.items() 
+                if self.is_tool_enabled(name)}
+    
     def search_tools(self, query: str) -> List[Dict[str, Any]]:
-        """Search for tools matching a query string in name or description"""
-        query = query.lower()
-        tools = []
+        """Search tools by query text"""
+        if not query:
+            return []
         
-        for name, metadata in self.tool_metadata.items():
-            description = metadata.get("description", "").lower()
-            if query in name.lower() or query in description:
-                tools.append(metadata)
+        query_lower = query.lower()
+        results = []
         
-        return tools
+        for name, tool in self.tool_metadata.items():
+            score = 0
+            name_lower = name.lower()
+            desc_lower = tool.get("description", "").lower()
+            
+            # Exact name match gets highest score
+            if name_lower == query_lower:
+                score += 100
+            # Name contains query
+            elif query_lower in name_lower:
+                score += 50
+            # Description contains query
+            elif query_lower in desc_lower:
+                score += 20
+            
+            # Calculate token-based similarity
+            query_tokens = query_lower.split()
+            name_tokens = name_lower.split("_")
+            desc_tokens = desc_lower.split()
+            
+            for token in query_tokens:
+                if token in name_tokens:
+                    score += 5
+                
+                for desc_token in desc_tokens:
+                    if token == desc_token:
+                        score += 2
+                    elif token in desc_token:
+                        score += 1
+            
+            if score > 0:
+                tool["score"] = score
+                results.append(tool)
+        
+        # Sort by score
+        results.sort(key=lambda x: x.get("score", 0), reverse=True)
+        
+        # Remove score field
+        for result in results:
+            if "score" in result:
+                del result["score"]
+        
+        return results
+
+    def register_from_mcp_client(self) -> int:
+        """Register tools from the MCP client"""
+        try:
+            # Load the config first
+            self.load_config()
+            
+            # Get all tools from the MCP client
+            all_tools = self.mcp_client.get_all_tools()
+            
+            # Register each tool
+            for tool_name, tool_info in all_tools.items():
+                # Skip tools that are explicitly disabled
+                if tool_name in self.enabled_tools and not self.enabled_tools[tool_name]:
+                    print(f"⏭️ Skipping disabled tool: {tool_name}")
+                    continue
+                
+                # Store tool metadata
+                self.tool_metadata[tool_name] = tool_info
+                
+                # Set tool as enabled by default
+                if tool_name not in self.enabled_tools:
+                    self.enabled_tools[tool_name] = True
+                
+                # Auto-categorize the tool if not already categorized
+                server_name = tool_info.get("server", "unknown")
+                tool_description = tool_info.get("description", "")
+                
+                # Check if the tool is already in a category
+                categorized = False
+                for category, tools in self.tool_categories.items():
+                    if tool_name in tools:
+                        categorized = True
+                        break
+                
+                # If not categorized, auto-categorize based on name/description
+                if not categorized:
+                    category = self.auto_categorize_tool(tool_name, tool_description)
+                    if category not in self.tool_categories:
+                        self.tool_categories[category] = []
+                    if tool_name not in self.tool_categories[category]:
+                        self.tool_categories[category].append(tool_name)
+            
+            # Save the config
+            self.save_config()
+            
+            return len(all_tools)
+            
+        except Exception as e:
+            print(f"❌ Error registering tools from MCP client: {e}")
+            return 0

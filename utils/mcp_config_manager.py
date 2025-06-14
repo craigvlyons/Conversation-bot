@@ -125,7 +125,7 @@ class MCPConfigManager:
         config = self.config[name]
         
         # Import here to avoid circular imports
-        from utils.mcp_server_manager import MCPServerManager, MCPServer
+        from utils.mcp_server_manager_old import MCPServerManager, MCPServer
         
         try:
             # Create a temporary server instance

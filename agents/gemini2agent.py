@@ -1,7 +1,6 @@
 from pydantic_ai import Agent
 from pydantic_ai.models.gemini import GeminiModel
 from agents.base_agent import BaseAgent
-from tools.base_tool import BaseTool
 from typing import List, Optional
 import logging
 

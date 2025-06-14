@@ -1,415 +1,481 @@
-import os
-import json
 import asyncio
+import json
+import logging
+import os
+import re
+import subprocess
+import time
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional, Tuple, Union, Any
+
 import aiohttp
-import websockets
-from typing import Dict, List, Any, Optional, Union
-from dataclasses import dataclass
-import uuid
+import requests
+from aiohttp import ClientTimeout
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class MCPServer:
-    """Represents an MCP server connection"""
-    name: str
+    id: str
     url: Optional[str] = None
     command: Optional[str] = None
-    args: Optional[List[str]] = None
-    description: Optional[str] = None
-    process: Optional[asyncio.subprocess.Process] = None
-    websocket: Optional[websockets.WebSocketClientProtocol] = None
-    capabilities: Dict[str, Any] = None
-    tools: Dict[str, Dict[str, Any]] = None
-    prompts: Dict[str, Dict[str, Any]] = None
-    resources: Dict[str, Dict[str, Any]] = None
-    
-    @property
-    def is_running(self) -> bool:
-        """Check if the server process is running"""
-        if self.process is not None:
-            return self.process.returncode is None
-        return False
-    
-    @property
-    def is_connected(self) -> bool:
-        """Check if the server is connected"""
-        if self.websocket is not None:
-            return not self.websocket.closed
-        return self.is_running
-
+    process: Optional[subprocess.Popen] = None
+    enabled: bool = True
+    environment: Dict[str, str] = field(default_factory=dict)
+    directory: Optional[str] = None
+    server_args: List[str] = field(default_factory=list)
+    tools: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
 class MCPServerManager:
-    """Manager class for MCP servers - handles loading, connecting, and managing MCP servers"""
-    
-    CONFIG_PATH = "mcp_servers.json"
-    
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: str = "./config/mcp_servers.json"):
+        self.config_path = config_path
         self.servers: Dict[str, MCPServer] = {}
-        self.config_path = config_path or self.CONFIG_PATH
+        self.connected_servers: Dict[str, MCPServer] = {}
+        self._load_config()
     
-    async def load_servers_config(self) -> bool:
-        """Load server configurations from file"""
+    def _load_config(self):
         try:
-            if not os.path.exists(self.config_path):
-                print(f"❌ MCP servers config file not found: {self.config_path}")
-                return False
-            
-            with open(self.config_path, 'r') as f:
-                config = json.load(f)
-            
-            for name, server_config in config.items():
-                server = MCPServer(
-                    name=name,
-                    url=server_config.get("url"),
-                    command=server_config.get("command"),
-                    args=server_config.get("args"),
-                    description=server_config.get("description")
+            with open(self.config_path, "r") as f:
+                servers_config = json.load(f)
+                
+            self.servers = {}
+            for server_id, config in servers_config.items():
+                enabled = config.get("enabled", True)
+                if not enabled:
+                    print(f"⏭️ Skipping disabled server: {server_id}")
+                    continue
+                url = config.get("url")
+                command = config.get("command")
+                # Handle both env and environment keys
+                environment = config.get("environment", config.get("env", {}))
+                directory = config.get("directory")                # Handle both args and server_args keys
+                server_args = config.get("server_args", config.get("args", []))
+                
+                self.servers[server_id] = MCPServer(
+                    id=server_id,
+                    url=url,
+                    command=command,
+                    enabled=enabled,
+                    environment=environment,
+                    directory=directory,
+                    server_args=server_args
                 )
-                self.servers[name] = server
-            
+                
             print(f"✅ Loaded {len(self.servers)} MCP servers from config")
-            return True
-            
-        except Exception as e:
-            print(f"❌ Error loading MCP servers config: {e}")
-            return False
+        except FileNotFoundError:
+            print(f"❌ MCP servers config not found: {self.config_path}")
     
-    async def connect_all_servers(self) -> Dict[str, bool]:
-        """Connect to all configured servers"""
+    def connect_to_servers(self, timeout=5):
+        """Connect to MCP servers with timeout to avoid blocking indefinitely"""
+        import threading
+        
+        # Create a dictionary to store connection results
         results = {}
         
-        for name, server in self.servers.items():
-            print(f"Connecting to MCP server: {name}")
-            success = await self.connect_server(name)
-            results[name] = success
-        
-        return results
-    
-    async def connect_server(self, name: str) -> bool:
-        """Connect to specific server by name"""
-        if name not in self.servers:
-            print(f"❌ Server not found: {name}")
-            return False
-        
-        server = self.servers[name]
-        try:
-            success = False
+        def connect_to_single_server(server_id, server):
+            print(f"Connecting to MCP server: {server_id}")
+            results[server_id] = self._connect_to_server(server)
+            print(f"Connection attempt for {server_id} completed, result: {results[server_id]}")
             
-            # Try URL connection first if available
-            if server.url:
-                print(f"🌐 Trying URL connection for {name}: {server.url}")
-                success = await self._connect_via_url(server)
-                
-                if success:
-                    print(f"✅ Connected to {name} via URL")
-                else:
-                    print(f"❌ URL connection failed for {name}")
+        # Connect to each server in a separate thread to prevent blocking
+        threads = []
+        for server_id, server in self.servers.items():
+            thread = threading.Thread(
+                target=connect_to_single_server, 
+                args=(server_id, server),
+                name=f"connect-{server_id}"
+            )
+            thread.daemon = True  # Mark as daemon so it doesn't block program exit
+            threads.append(thread)
+            thread.start()
             
-            # Fall back to command if URL failed or not available
-            if not success and server.command:
-                print(f"🚀 Starting {name} via command: {server.command} {' '.join(server.args or [])}")
-                success = await self._start_and_connect_process(server)
-                
-                if success:
-                    print(f"✅ Started and connected to {name} via command")
-                else:
-                    print(f"❌ Command startup failed for {name}")
+        # Wait for all threads to complete or timeout
+        start_time = time.time()
+        while time.time() - start_time < timeout and any(t.is_alive() for t in threads):
+            time.sleep(0.1)
             
-            if not success and not server.url and not server.command:
-                print(f"❌ Invalid server config for {name}: missing 'url' or 'command'")
-                return False
-            
+        # Check which servers were successfully connected
+        for server_id, success in results.items():
             if success:
-                # Discover server capabilities
-                await self._discover_capabilities(server)
-                print(f"✅ Connected to MCP server: {name}")
-                print(f"   Tools: {len(server.tools or {})}")
-                print(f"   Prompts: {len(server.prompts or {})}")
-                print(f"   Resources: {len(server.resources or {})}")
-                return True
-            else:
-                print(f"❌ Failed to connect to MCP server: {name}")
-                return False
+                self.connected_servers[server_id] = self.servers[server_id]
                 
-        except Exception as e:
-            print(f"❌ Error connecting to server {name}: {e}")
-            return False
-    
-    async def _connect_via_url(self, server: MCPServer) -> bool:
-        """Connect to MCP server via URL (WebSocket or HTTP SSE)"""
-        try:
-            if server.url.startswith("ws://") or server.url.startswith("wss://"):
-                # WebSocket connection
-                server.websocket = await websockets.connect(server.url)
+        # Log any servers that timed out
+        for thread in threads:
+            if thread.is_alive():
+                server_id = thread.name.replace("connect-", "")
+                print(f"⚠️ Connection to {server_id} timed out, but continuing")
+                
+        # Try to discover capabilities for servers that connected
+        if self.connected_servers:
+            print(f"Moving on with {len(self.connected_servers)} connected servers")
+    def _connect_to_server(self, server: MCPServer) -> bool:
+        if server.url:
+            print(f"🌐 Trying URL connection for {server.id}: {server.url}/sse")
+            if self._test_url_connection(server):
+                print(f"✅ Connected to {server.id} via URL")
                 return True
-            elif "/sse" in server.url:
-                # HTTP SSE connection - establish session first
-                async with aiohttp.ClientSession() as session:
-                    # For FastMCP SSE, we need to establish a session by connecting to the SSE endpoint
+            print(f"❌ URL connection failed for {server.id}")
+        
+        if server.command:
+            print(f"🚀 Starting {server.id} via command: {server.command}")
+            if self._start_server_process(server):
+                # Give the server a moment to start and print its URL
+                time.sleep(2)
+                # Now extract URL from process output if available
+                if server.process:
+                    url = self._extract_url_from_process(server)
+                    if url:
+                        server.url = url
+                        print(f"✅ Found server URL: {url}")
+                        
+                        # Now test the URL connection
+                        if self._test_url_connection(server):
+                            print(f"✅ Verified connection to {server.id} via URL")
+                    print(f"✅ Started and connected to {server.id} via command")
+                return True
+            print(f"❌ Command startup failed for {server.id}")
+        
+        print(f"❌ Failed to connect to MCP server: {server.id}")
+        return False
+        
+    def _extract_url_from_process(self, server: MCPServer, timeout=2) -> Optional[str]:
+        """Extract URL from server process output with timeout."""
+        if not server.process:
+            return None
+        
+        # Common URL patterns for MCP servers
+        patterns = [
+            r'Server running at (https?://[^\s]+)',
+            r'MCP server listening on (https?://[^\s]+)',
+            r'listening on (https?://[^\s]+)',
+            r'Server started at (https?://[^\s]+)',
+            # Adding specific pattern for Playwright MCP
+            r'Listening on: (https?://[^\s]+)',
+            r'Running at (https?://[^\s]+)'
+        ]
+        
+        # Check if we can read stdout from the process
+        if hasattr(server.process, 'stdout') and server.process.stdout:
+            import io
+            
+            # Try to read with timeout
+            try:
+                start_time = time.time()
+                
+                # For Playwright MCP, we can just use a default URL
+                if server.id == "playwright":
+                    # Wait a bit for the process to start
+                    time.sleep(2)
+                    default_url = "http://localhost:3000"
+                    print(f"  Using default URL for Playwright MCP: {default_url}")
+                    return default_url
+                
+                # Read for up to timeout seconds for other servers
+                while time.time() - start_time < timeout:
+                    # Windows-compatible approach - just try to read a line without select
                     try:
-                        # First, try to establish SSE connection to create a session
-                        async with session.get(
-                            server.url, 
-                            timeout=aiohttp.ClientTimeout(total=5),
-                            headers={"Accept": "text/event-stream"}
-                        ) as response:
-                            if response.status == 200:
-                                # SSE connection established, server should create a session
-                                # Read the first few events to see if we get session info
-                                async for line in response.content:
-                                    if line:
-                                        line_str = line.decode().strip()
-                                        if line_str.startswith("data:"):
-                                            # We got SSE data, connection is working
-                                            return True
-                                        elif len(line_str) > 0:
-                                            # Got some response
-                                            return True
-                                    # Don't wait forever, just check if SSE is responsive
-                                    break
-                                return True
-                    except asyncio.TimeoutError:
-                        # Timeout is expected for SSE connections, means it's working
-                        return True
+                        # Non-blocking readline is tricky on Windows
+                        # Just read with timeout and wait between attempts
+                        line = server.process.stdout.readline()
+                        if not line:
+                            time.sleep(0.1)
+                            continue
+                            
+                        decoded_line = line.decode('utf-8', errors='ignore')
+                        print(f"  Server output: {decoded_line.strip()}")
+                        
+                        # Check for URL in this line
+                        for pattern in patterns:
+                            match = re.search(pattern, decoded_line)
+                            if match:
+                                return match.group(1)
                     except Exception as e:
-                        print(f"SSE connection test failed: {e}")
-                        return False
-            else:
-                print(f"Unsupported URL format: {server.url}")
-                return False
-        except Exception as e:
-            print(f"Failed to connect via URL: {e}")
-            return False
+                        print(f"  Error reading line: {e}")
+                        time.sleep(0.1)
+                
+                # If we got here, we timed out without finding URL
+                print(f"  No URL found in process output after {timeout} seconds")
+                
+                # For Playwright MCP, we'll use a default URL if none is found
+                if server.id == "playwright":
+                    default_url = "http://localhost:3000"
+                    print(f"  Using default URL for Playwright MCP: {default_url}")
+                    return default_url
+                
+                return None
+                
+            except Exception as e:
+                # Handle the case where stdout might not support non-blocking read
+                print(f"  Error reading process output: {e}")
+                
+                # For Playwright MCP, we'll use a default URL if there's an error
+                if server.id == "playwright":
+                    default_url = "http://localhost:3000"
+                    print(f"  Using default URL for Playwright MCP: {default_url}")
+                    return default_url
+                
+                return None
+        
+        return None
     
-    async def _start_and_connect_process(self, server: MCPServer) -> bool:
-        """Start MCP server process and connect to it"""
+    def _start_server_process(self, server: MCPServer) -> bool:
+        if not server.command:
+            return False
+            
+        cmd_parts = server.command.split()
+        
+        # On Windows, handle npx command specially
+        import platform
+        if platform.system() == "Windows" and cmd_parts[0] == "npx":
+            # Use npx.cmd instead of npx on Windows
+            cmd_parts[0] = "npx.cmd"
+            
+        # Prepare environment variables
+        env = os.environ.copy()
+        for key, value in server.environment.items():
+            env[key] = value
+    
+        # Add any server args
+        if server.server_args:
+            cmd_parts.extend(server.server_args)
+            
         try:
-            # Start the server process
-            cmd = [server.command] + (server.args or [])
+            print(f"Starting MCP server: {' '.join(cmd_parts)}")
             
-            # Handle Windows npx command
-            import platform
-            if platform.system() == "Windows" and server.command == "npx":
-                # On Windows, npx might be npx.cmd
-                cmd[0] = "npx.cmd"
-            
-            print(f"Starting MCP server: {' '.join(cmd)}")
-            
-            server.process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                stdin=asyncio.subprocess.PIPE
+            # Use server directory if specified
+            cwd = os.path.abspath(server.directory) if server.directory else None
+            if cwd:
+                print(f"  Using directory: {cwd}")
+                
+            # Start the process with stdout and stderr pipes
+            process = subprocess.Popen(
+                cmd_parts,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                cwd=cwd,
+                text=False,  # We'll handle decoding manually
+                bufsize=1,   # Line buffered
+                shell=False  # Don't use shell to avoid process management issues
             )
             
-            # Give the server time to start
-            await asyncio.sleep(3)
-            
-            # Check if process is running
-            if server.process.returncode is not None:
-                stderr = await server.process.stderr.read()
-                stdout = await server.process.stdout.read()
-                print(f"Server process failed to start:")
-                print(f"  STDERR: {stderr.decode()}")
-                print(f"  STDOUT: {stdout.decode()}")
+            # Check if process started successfully
+            if process.poll() is not None:
+                # Process has already terminated
+                stderr = process.stderr.read().decode('utf-8', errors='ignore') if process.stderr else ""
+                print(f"Server process failed to start: {stderr}")
                 return False
             
-            print(f"  ✅ Process started (PID: {server.process.pid})")
+            print(f"  ✅ Process started (PID: {process.pid})")
+            server.process = process
             return True
-            
-        except FileNotFoundError as e:
-            print(f"Command not found: {server.command}")
-            print(f"  Make sure Node.js and npm are installed for npx commands")
-            print(f"  Error: {e}")
-            return False
         except Exception as e:
-            print(f"Failed to start server process: {e}")
+            print(f"  ❌ Error starting server process: {str(e)}")
             return False
     
-    async def _discover_capabilities(self, server: MCPServer):
-        """Discover tools, prompts, and resources from MCP server"""
+    def _test_url_connection(self, server: MCPServer) -> bool:
+        if not server.url:
+            return False
+        
         try:
-            print(f"🔍 Discovering capabilities for {server.name}...")
+            sse_url = f"{server.url.rstrip('/')}/sse"
+            response = requests.get(sse_url, stream=True, timeout=3)
+            return response.status_code == 200
+        except Exception:
+            return False
+    
+    def discover_capabilities(self):
+        """Discover capabilities for all connected servers."""
+        for server_id, server in self.connected_servers.items():
+            print(f"🔍 Discovering capabilities for {server_id}...")
             
-            # Send initialize request
-            init_response = await self._send_mcp_request(server, "initialize", {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {
-                    "tools": {},
-                    "prompts": {},
-                    "resources": {}
-                },
-                "clientInfo": {
-                    "name": "convo-bot-mcp-client",
-                    "version": "1.0.0"
-                }
-            })
-            
-            if init_response:
-                server.capabilities = init_response.get("capabilities", {})
-                print(f"  ✅ Initialized {server.name}")
+            # Try to initialize the server
+            initialized = self._init_server(server)
+            if initialized:
+                print(f"  ✅ Initialized {server_id}")
             else:
-                print(f"  ❌ Failed to initialize {server.name}")
-                server.capabilities = {}
+                print(f"  ❌ Failed to initialize {server_id}")
             
-            # Discover tools - try even if capabilities is empty
+            # Discover tools
             print(f"  🔧 Discovering tools...")
-            tools_response = await self._send_mcp_request(server, "tools/list", {})
-            if tools_response and "tools" in tools_response:
-                server.tools = {tool["name"]: tool for tool in tools_response["tools"]}
-                print(f"    Found {len(server.tools)} tools")
+            tools = self._discover_tools(server)
+            if tools:
+                print(f"    Found {len(tools)} tools")
             else:
                 print(f"    No tools found")
-                server.tools = {}
             
             # Discover prompts
             print(f"  📝 Discovering prompts...")
-            prompts_response = await self._send_mcp_request(server, "prompts/list", {})
-            if prompts_response and "prompts" in prompts_response:
-                server.prompts = {prompt["name"]: prompt for prompt in prompts_response["prompts"]}
-                print(f"    Found {len(server.prompts)} prompts")
+            prompts = self._discover_prompts(server)
+            if prompts:
+                print(f"    Found {len(prompts)} prompts")
             else:
                 print(f"    No prompts found")
-                server.prompts = {}
             
             # Discover resources
             print(f"  📁 Discovering resources...")
-            resources_response = await self._send_mcp_request(server, "resources/list", {})
-            if resources_response and "resources" in resources_response:
-                server.resources = {resource["uri"]: resource for resource in resources_response["resources"]}
-                print(f"    Found {len(server.resources)} resources")
+            resources = self._discover_resources(server)
+            if resources:
+                print(f"    Found {len(resources)} resources")
             else:
                 print(f"    No resources found")
-                server.resources = {}
-                    
-        except Exception as e:
-            print(f"  ❌ Error discovering capabilities for {server.name}: {e}")
-            # Set empty defaults
-            server.tools = {}
-            server.prompts = {}
-            server.resources = {}
+            
+            print(f"✅ Connected to MCP server: {server_id}")
+            print(f"   Tools: {len(tools) if tools else 0}")
+            print(f"   Prompts: {len(prompts) if prompts else 0}")
+            print(f"   Resources: {len(resources) if resources else 0}")
     
-    async def _send_mcp_request(self, server: MCPServer, method: str, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Send MCP request to server and get response"""
-        request = {
-            "jsonrpc": "2.0",
-            "id": str(uuid.uuid4()),
-            "method": method,
-            "params": params
-        }
-        
-        try:
-            if server.websocket:
-                # WebSocket communication
-                await server.websocket.send(json.dumps(request))
-                response = await server.websocket.recv()
-                return json.loads(response).get("result")
-            
-            elif server.process:
-                # Process stdin/stdout communication
-                request_json = json.dumps(request) + "\n"
-                server.process.stdin.write(request_json.encode())
-                await server.process.stdin.drain()
-                
-                # Read response
-                response_line = await server.process.stdout.readline()
-                if response_line:
-                    response = json.loads(response_line.decode().strip())
-                    return response.get("result")
-            
-            elif server.url and "/sse" in server.url:
-                # For FastMCP SSE, we need to send HTTP requests
-                async with aiohttp.ClientSession() as session:
-                    endpoint = server.url.replace("/sse", "/jsonrpc")
-                    async with session.post(
-                        endpoint, 
-                        json=request,
-                        headers={"Content-Type": "application/json"}
-                    ) as response:
-                        if response.status != 200:
-                            print(f"Request failed: {response.status}")
-                            return None
-                        response_data = await response.json()
-                        return response_data.get("result")
-                
-            return None
-            
-        except Exception as e:
-            print(f"Error sending MCP request: {e}")
-            return None
-    
-    async def stop_server(self, name: str) -> bool:
-        """Stop a specific server by name"""
-        if name not in self.servers:
-            print(f"Server not found: {name}")
+    def _init_server(self, server: MCPServer) -> bool:
+        """Initialize an MCP server."""
+        if not server.url:
+            print(f"No URL available for server")
             return False
         
-        server = self.servers[name]
-        
         try:
-            if server.websocket and not server.websocket.closed:
-                await server.websocket.close()
-            
-            if server.process and server.process.returncode is None:
-                try:
-                    server.process.terminate()
-                    # Give it a moment to terminate gracefully
-                    await asyncio.sleep(2)
-                    
-                    # Force kill if still running
-                    if server.process.returncode is None:
-                        server.process.kill()
-                except Exception as e:
-                    print(f"Error stopping server process: {e}")
-                    return False
-            
-            print(f"✅ Stopped server: {name}")
-            return True
-            
-        except Exception as e:
-            print(f"❌ Error stopping server: {e}")
-            return False
-    
-    async def stop_all_servers(self):
-        """Stop all running MCP servers"""
-        for name in self.servers:
-            await self.stop_server(name)
-    
-    async def restart_server(self, name: str) -> bool:
-        """Restart a specific server by name"""
-        await self.stop_server(name)
-        return await self.connect_server(name)
-    
-    async def get_server_health(self, name: str) -> Dict[str, Any]:
-        """Get health status of a specific server"""
-        if name not in self.servers:
-            return {"status": "not_found"}
-        
-        server = self.servers[name]
-        
-        if not server.is_running and not server.is_connected:
-            return {"status": "stopped"}
-        
-        try:
-            # Try to ping the server
-            response = await self._send_mcp_request(server, "ping", {})
-            if response and response.get("pong"):
-                return {
-                    "status": "healthy",
-                    "details": {
-                        "tools": len(server.tools or {}),
-                        "prompts": len(server.prompts or {}),
-                        "resources": len(server.resources or {})
+            jsonrpc_url = f"{server.url.rstrip('/')}/jsonrpc"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "capabilities": {
+                        "experimental": {}
                     }
                 }
+            }
+            
+            response = requests.post(jsonrpc_url, json=payload, headers=headers, timeout=5)
+            if response.status_code == 200:
+                return True
             else:
-                return {"status": "unhealthy", "reason": "no_response"}
+                print(f"Request failed: {response.status_code}")
+                return False
+        except Exception as e:
+            print(f"Error sending MCP request: {str(e)}")
+            return False
+    
+    def _discover_tools(self, server: MCPServer) -> List[Dict]:
+        """Discover tools from an MCP server."""
+        return self._send_jsonrpc_request(server, "getTools", {})
+    
+    def _discover_prompts(self, server: MCPServer) -> List[Dict]:
+        """Discover prompts from an MCP server."""
+        return self._send_jsonrpc_request(server, "getPrompts", {})
+    
+    def _discover_resources(self, server: MCPServer) -> List[Dict]:
+        """Discover resources from an MCP server."""
+        return self._send_jsonrpc_request(server, "getResources", {})
+    
+    def _send_jsonrpc_request(self, server: MCPServer, method: str, params: Dict) -> List[Dict]:
+        """Send a JSON-RPC request to an MCP server."""
+        if not server.url:
+            return []
+        
+        try:
+            jsonrpc_url = f"{server.url.rstrip('/')}/jsonrpc"
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": method,
+                "params": params
+            }
+            
+            response = requests.post(jsonrpc_url, json=payload, headers=headers, timeout=5)
+            if response.status_code == 200:
+                result = response.json()
+                if "result" in result:
+                    return result["result"]
+            else:
+                print(f"Request failed: {response.status_code}")
+        except Exception as e:
+            print(f"Error sending MCP request: {str(e)}")
+        
+        return []
+    
+    def shutdown(self):
+        """Shutdown all MCP server processes."""
+        for server_id, server in self.connected_servers.items():
+            if server.process:
+                try:
+                    print(f"Shutting down MCP server: {server_id}")
+                    server.process.terminate()
+                    server.process.wait(timeout=5)
+                    print(f"  ✅ Server {server_id} terminated")
+                except Exception as e:
+                    print(f"  ❌ Error shutting down server {server_id}: {str(e)}")
+                    try:
+                        server.process.kill()
+                    except:
+                        pass
+    
+    async def stop_all_servers(self):
+        """Asynchronously shutdown all MCP server processes."""
+        for server_id, server in self.connected_servers.items():
+            if server.process:
+                try:
+                    print(f"Shutting down MCP server: {server_id}")
+                    server.process.terminate()
+                    
+                    # Give it a moment to terminate gracefully
+                    for _ in range(50):  # 5 seconds timeout
+                        if server.process.poll() is not None:
+                            break
+                        await asyncio.sleep(0.1)
+                    
+                    if server.process.poll() is None:
+                        print(f"  ⚠️ Server {server_id} not responding, forcing kill")
+                        server.process.kill()
+                        await asyncio.sleep(0.5)
+                    
+                    print(f"  ✅ Server {server_id} terminated")
+                except Exception as e:
+                    print(f"  ❌ Error shutting down server {server_id}: {str(e)}")
+                    try:
+                        server.process.kill()
+                    except:
+                        pass
+    
+    def get_tools(self) -> List[Dict]:
+        """Get all tools from all connected MCP servers."""
+        all_tools = []
+        for server_id, server in self.connected_servers.items():
+            tools = self._discover_tools(server)
+            if tools:
+                # Add server_id to each tool for identification
+                for tool in tools:
+                    tool["server_id"] = server_id
+                all_tools.extend(tools)
+        
+        return all_tools
+    
+    def discover_capabilities(self):
+        """Discover capabilities of connected servers"""
+        for server_id, server in self.connected_servers.items():
+            if server.url:
+                self._discover_server_capabilities(server)
+                
+    def _discover_server_capabilities(self, server: MCPServer):
+        """Discover capabilities of a specific server using its API"""
+        if not server.url:
+            return
+        
+        try:
+            # Make a GET request to the server's capabilities endpoint
+            url = f"{server.url}/capabilities"
+            response = requests.get(url, timeout=5)
+            
+            if response.status_code == 200:
+                capabilities = response.json()
+                # Extract tools from the capabilities
+                if "tools" in capabilities:
+                    server.tools = capabilities["tools"]
+                    print(f"✅ Discovered {len(server.tools)} tools for {server.id}")
+                else:
+                    print(f"⚠️ No tools found in capabilities for {server.id}")
+            else:
+                print(f"❌ Failed to get capabilities for {server.id}: {response.status_code}")
                 
         except Exception as e:
-            return {"status": "unhealthy", "reason": str(e)}
-    
-    async def get_all_servers_health(self) -> Dict[str, Dict[str, Any]]:
-        """Get health status of all servers"""
-        results = {}
-        for name in self.servers:
-            results[name] = await self.get_server_health(name)
-        return results
+            print(f"❌ Error discovering capabilities for {server.id}: {e}")

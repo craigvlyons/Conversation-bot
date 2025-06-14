@@ -9,18 +9,22 @@ from utils.mcp_client import MCPClient
 from utils.mcp_tool_registry import MCPToolRegistry
 import logging
 import asyncio
+import threading
 
 logger = logging.getLogger(__name__)
 
+# Global variable to store the MCP components
+server_manager = None
+mcp_client = None
+tool_registry = None
+mcp_agent = None
+
 # Run MCP setup in a background thread to avoid blocking the UI
-import threading
-
-# Global variable to store the server manager
-server_manager_global = None
-
 def run_mcp_setup_thread():
     """Run MCP setup tasks in a separate thread"""
     try:
+        global server_manager, mcp_client, tool_registry, mcp_agent
+        
         # Create a new event loop for this thread
         thread_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(thread_loop)
@@ -39,16 +43,47 @@ def run_mcp_setup_thread():
         for server_id in connected_servers:
             logger.info(f"  ✅ {server_id}")
         
-        # We'll discover capabilities later if needed
-        # Don't block the UI thread for this
-        
-        # Store the server manager in the global state
-        global server_manager_global
-        server_manager_global = server_manager
+        if connected_servers:
+            # Set up MCP client
+            mcp_client = MCPClient(server_manager.servers)
+            
+            # Initialize tool registry
+            logger.info("Initializing MCP Tool Registry")
+            tool_registry = MCPToolRegistry(mcp_client)
+            tool_count = tool_registry.register_from_mcp_client()
+            logger.info(f"Registered {tool_count} MCP tools")
+            
+            # Create MCP agent
+            logger.info("Creating MCP-aware agent")
+            mcp_agent = MCPAgent("mcp_agent", server_manager, tool_registry)
+            
+            # Register MCP agent if available
+            AgentRegistry.register("mcp", mcp_agent)
+            logger.info("Registered MCP agent")
+            
+            # Register MCP tools with each agent if available
+            if mcp_agent:
+                tools = mcp_agent.get_all_mcp_tools()
+                logger.info(f"Registering {len(tools)} MCP tools with agents")
+                
+                # Register tool metadata with regular agents
+                for tool_name, tool_info in tools.items():
+                    primary_agent.register_mcp_tool(tool_name, tool_info)
+                    secondary_agent.register_mcp_tool(tool_name, tool_info)
+                    fallback_agent.register_mcp_tool(tool_name, tool_info)
+                
+                # Enable MCP for all agents
+                primary_agent.enable_mcp()
+                secondary_agent.enable_mcp()
+                fallback_agent.enable_mcp()
+                
+                logger.info("MCP tools registered with all agents")
         
         logger.info("MCP setup completed in background thread")
     except Exception as e:
         logger.error(f"Error in MCP setup thread: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
 
 def run_setup():
     """Start the MCP setup process in a background thread and return immediately"""
@@ -62,45 +97,6 @@ def run_setup():
     
     # Return immediately - setup will continue in the background
     logger.info("MCP setup started in background thread")
-        
-        # Set up MCP client
-        mcp_client = MCPClient(server_manager.servers)
-        
-        # Initialize tool registry
-        logger.info("Initializing MCP Tool Registry")
-        tool_registry = MCPToolRegistry(mcp_client)
-        tool_count = tool_registry.register_from_mcp_client()
-        logger.info(f"Registered {tool_count} MCP tools")
-        
-        # Create MCP agent
-        logger.info("Creating MCP-aware agent")
-        mcp_agent: MCPAgent = MCPAgent("mcp_agent", server_manager, tool_registry)
-        
-        # Skip initialization since we've already set up the servers and tools
-        
-        # Return the MCP components
-        return {
-            "server_manager": server_manager,
-            "mcp_client": mcp_client,
-            "tool_registry": tool_registry,
-            "mcp_agent": mcp_agent
-        }
-    except Exception as e:
-        logger.error(f"Error in setup: {e}")
-        return {}
-    finally:
-        # Only close the loop if we created a new one
-        if close_loop:
-            loop.close()
-
-# Initialize MCP components
-mcp_components = run_setup()
-
-# Get MCP components
-server_manager = mcp_components.get("server_manager")
-mcp_client = mcp_components.get("mcp_client")
-tool_registry = mcp_components.get("tool_registry")
-mcp_agent: MCPAgent = mcp_components.get("mcp_agent")
 
 # Instantiate core agents
 primary_agent = GeminiAIAgent(api_key=GEMINI_KEY)       # Gemini - is probably good enough for basic tasks and cheap.
@@ -114,25 +110,5 @@ AgentRegistry.register("gemini", primary_agent)
 AgentRegistry.register("gpt4o", fallback_agent)
 AgentRegistry.register("gemini2", secondary_agent)
 
-# Register MCP agent if available
-if mcp_agent:
-    AgentRegistry.register("mcp", mcp_agent)
-    logger.info("Registered MCP agent")
-
-# Register MCP tools with each agent if available
-if tool_registry and mcp_agent:
-    tools = mcp_agent.get_all_mcp_tools()
-    logger.info(f"Registering {len(tools)} MCP tools with agents")
-    
-    # Register tool metadata with regular agents
-    for tool_name, tool_info in tools.items():
-        primary_agent.register_mcp_tool(tool_name, tool_info)
-        secondary_agent.register_mcp_tool(tool_name, tool_info)
-        fallback_agent.register_mcp_tool(tool_name, tool_info)
-    
-    # Enable MCP for all agents
-    primary_agent.enable_mcp()
-    secondary_agent.enable_mcp()
-    fallback_agent.enable_mcp()
-    
-    logger.info("MCP tools registered with all agents")
+# For now, skip MCP setup to make sure the application starts properly
+# run_setup()
