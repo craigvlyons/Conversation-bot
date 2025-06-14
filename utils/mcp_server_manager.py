@@ -435,7 +435,13 @@ class MCPServerManager:
             print(f"  🔧 Discovering tools...")
             tools = self._discover_tools(server)
             if tools:
-                print(f"    Found {len(tools)} tools")
+                # Store tools in the server object
+                server.tools = {}
+                for tool in tools:
+                    tool_name = tool.get('name')
+                    if tool_name:
+                        server.tools[tool_name] = tool
+                print(f"    Found {len(tools)} tools: {list(server.tools.keys())}")
             else:
                 print(f"    No tools found")
             
@@ -467,7 +473,13 @@ class MCPServerManager:
             return False
         
         try:
-            jsonrpc_url = f"{server.url.rstrip('/')}/jsonrpc"
+            # For URLs ending with /sse, use the base URL for JSON-RPC
+            if server.url.endswith('/sse'):
+                base_url = server.url[:-4]  # Remove '/sse'
+            else:
+                base_url = server.url.rstrip('/')
+            
+            jsonrpc_url = f"{base_url}/jsonrpc"
             headers = {"Content-Type": "application/json"}
             payload = {
                 "jsonrpc": "2.0",
@@ -508,7 +520,13 @@ class MCPServerManager:
             return []
         
         try:
-            jsonrpc_url = f"{server.url.rstrip('/')}/jsonrpc"
+            # For URLs ending with /sse, use the base URL for JSON-RPC
+            if server.url.endswith('/sse'):
+                base_url = server.url[:-4]  # Remove '/sse'
+            else:
+                base_url = server.url.rstrip('/')
+            
+            jsonrpc_url = f"{base_url}/jsonrpc"
             headers = {"Content-Type": "application/json"}
             payload = {
                 "jsonrpc": "2.0",
@@ -597,8 +615,14 @@ class MCPServerManager:
             return
         
         try:
+            # For URLs ending with /sse, use the base URL for capabilities
+            if server.url.endswith('/sse'):
+                base_url = server.url[:-4]  # Remove '/sse'
+            else:
+                base_url = server.url.rstrip('/')
+            
             # Make a GET request to the server's capabilities endpoint
-            url = f"{server.url}/capabilities"
+            url = f"{base_url}/capabilities"
             response = requests.get(url, timeout=5)
             
             if response.status_code == 200:
