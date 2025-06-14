@@ -7,6 +7,7 @@ from utils.constants import GEMINI_KEY, OPENAI_KEY
 from utils.mcp_server_manager import MCPServerManager
 from utils.mcp_client import MCPClient
 from utils.mcp_tool_registry import MCPToolRegistry
+from utils.mcp_agent_integration import get_mcp_integration, MCPEnhancedGeminiAgent, MCPEnhancedGPTAgent
 import logging
 import asyncio
 import sys
@@ -92,40 +93,47 @@ def run_mcp_setup_thread():
             # Register MCP agent globally
             logger.debug("Registering MCP agent with AgentRegistry")
             AgentRegistry.register("mcp", mcp_agent)
-            logger.info("Registered MCP agent")            # Register MCP tools with each agent if available
+            logger.info("Registered MCP agent")
+            
+            # Set up MCP integration
+            logger.info("Setting up MCP integration with agents")
+            mcp_integration = get_mcp_integration()
+            mcp_integration.set_mcp_executor(mcp_agent.execute_mcp_tool)            # Register MCP tools with each agent if available
             if tool_registry and mcp_agent:
                 logger.debug("Getting all MCP tools from agent")
                 tools = mcp_agent.get_all_mcp_tools()
                 logger.info(f"Registering {len(tools)} MCP tools with agents")
                 logger.debug(f"Tool names: {list(tools.keys())}")
                 
-                # Register tool metadata with regular agents
-                logger.debug("Checking if primary_agent is available")
-                if 'primary_agent' in globals():
-                    logger.debug("primary_agent exists in globals")
+                # Register MCP tools with enhanced agents
+                logger.debug("Registering MCP tools with enhanced agents")
+                try:
+                    # Register with primary agent
+                    logger.debug("Registering MCP tools with primary agent")
                     for tool_name, tool_info in tools.items():
-                        logger.debug(f"Registering tool '{tool_name}' with primary agent")
                         primary_agent.register_mcp_tool(tool_name, tool_info)
-                        
-                        logger.debug(f"Registering tool '{tool_name}' with secondary agent")
-                        secondary_agent.register_mcp_tool(tool_name, tool_info)
-                        
-                        logger.debug(f"Registering tool '{tool_name}' with fallback agent")
-                        fallback_agent.register_mcp_tool(tool_name, tool_info)
-                    
-                    # Enable MCP for all agents
-                    logger.debug("Enabling MCP for primary agent")
                     primary_agent.enable_mcp()
+                    primary_agent.setup_mcp_integration(tools)
                     
-                    logger.debug("Enabling MCP for secondary agent")
+                    # Register with secondary agent  
+                    logger.debug("Registering MCP tools with secondary agent")
+                    for tool_name, tool_info in tools.items():
+                        secondary_agent.register_mcp_tool(tool_name, tool_info)
                     secondary_agent.enable_mcp()
+                    secondary_agent.setup_mcp_integration(tools)
                     
-                    logger.debug("Enabling MCP for fallback agent")
+                    # Register with fallback agent
+                    logger.debug("Registering MCP tools with fallback agent")
+                    for tool_name, tool_info in tools.items():
+                        fallback_agent.register_mcp_tool(tool_name, tool_info)
                     fallback_agent.enable_mcp()
+                    fallback_agent.setup_mcp_integration(tools)
                     
                     logger.info("MCP tools registered with all agents")
-                else:
-                    logger.warning("primary_agent not found in globals, cannot register tools with agents")
+                    
+                except Exception as e:
+                    logger.error(f"Error registering MCP tools with agents: {e}")
+                    logger.error(traceback.format_exc())
             else:
                 logger.warning("tool_registry or mcp_agent is None, skipping tool registration")
         else:
@@ -157,7 +165,8 @@ def run_setup():
         logger.error(f"Error starting MCP setup thread: {e}")
         return {}
 
-# Instantiate core agents
+# Instantiate core agents with MCP enhancement capability
+# Note: We'll use regular agents initially and enhance them when MCP tools are available
 primary_agent = GeminiAIAgent(api_key=GEMINI_KEY)       # Gemini - is probably good enough for basic tasks and cheap.
 fallback_agent = GPT4oAgent(api_key=OPENAI_KEY)         # GPT - is probably better for code, then Gemini
 secondary_agent = GeminiAIAgent2(api_key=GEMINI_KEY)    # Gemini2 - is probably better for more complex tasks, then Gemini 1.

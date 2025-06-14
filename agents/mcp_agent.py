@@ -158,9 +158,9 @@ class MCPAgent(BaseAgent):
             self.parameter_validator.validate(tool_name, transformed_params)
             
             # Execute the tool
-            response: ToolResponse = await self.tool_executor.execute_tool(
+            response: ToolResponse = await self.tool_executor.execute(
                 tool_name, 
-                transformed_params
+                **transformed_params
             )
             
             # Format the result

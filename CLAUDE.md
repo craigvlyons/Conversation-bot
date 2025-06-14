@@ -41,6 +41,9 @@ python main.py
 # Run MCP tools tests
 python -m pytest tests/test_mcp_tools.py
 
+# Test MCP integration end-to-end
+python test_mcp_integration.py
+
 # Run all tests
 python -m pytest tests/
 ```
@@ -61,8 +64,11 @@ The system supports Model Context Protocol (MCP) servers for dynamic tool integr
 - **Server Manager**: `utils/mcp_server_manager.py` handles server lifecycle
 - **Tool Registry**: `utils/mcp_tool_registry.py` manages tool discovery and registration
 - **Client**: `utils/mcp_client.py` provides communication interface
+- **Integration Layer**: `utils/mcp_agent_integration.py` connects MCP tools with pydantic-ai agents
+- **Function Schema Generator**: `utils/mcp_function_schema.py` converts MCP tools to function calling schemas
 - MCP servers are configured in `config/mcp_servers.json`
 - Background initialization prevents UI blocking
+- **Tool Execution Flow**: User input → Agent detects tool trigger → MCP agent executes tool → Results returned
 
 ### Core Components
 - **Main UI**: PyQt6-based chat interface (`ui/chatwindow.py`)

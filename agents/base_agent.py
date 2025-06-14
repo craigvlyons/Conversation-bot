@@ -83,3 +83,65 @@ class BaseAgent(ABC):
         Default implementation raises NotImplementedError.
         """
         raise NotImplementedError("This agent does not support MCP tool execution")
+    
+    def setup_mcp_integration(self, tools: Dict[str, Dict[str, Any]]):
+        """
+        Set up pydantic-ai integration for MCP tools.
+        This is called after tools are registered to enable function calling.
+        """
+        try:
+            from utils.mcp_agent_integration import get_mcp_integration
+            integration = get_mcp_integration()
+            
+            if hasattr(self, 'agent') and integration.mcp_executor:
+                integration.register_mcp_tools_with_agent(self.agent, tools)
+        except ImportError:
+            pass  # Integration not available
+        except Exception as e:
+            # Log but don't fail
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to set up MCP integration for {self.name}: {e}")
+    
+    def check_for_mcp_tool_trigger(self, user_input: str) -> Optional[str]:
+        """
+        Check if user input should trigger an MCP tool.
+        Returns the tool name if a match is found, None otherwise.
+        """
+        if not self.mcp_enabled or not self.mcp_tools:
+            return None
+        
+        user_lower = user_input.lower()
+        
+        # Check for explicit tool mentions
+        for tool_name, tool_info in self.mcp_tools.items():
+            tool_name_lower = tool_name.lower()
+            description = tool_info.get("description", "").lower()
+            
+            # Check if tool name is mentioned
+            if tool_name_lower in user_lower:
+                return tool_name
+            
+            # Check for keyword matches in description
+            if any(word in user_lower for word in description.split() if len(word) > 3):
+                # Basic relevance check
+                common_words = set(user_lower.split()) & set(description.split())
+                if len(common_words) >= 2:
+                    return tool_name
+        
+        # Pattern-based matching for common tool types
+        tool_patterns = {
+            'browser': ['open', 'navigate', 'visit', 'screenshot', 'click', 'type', 'browse'],
+            'devops': ['work item', 'task', 'project', 'create', 'list', 'azure'],
+            'search': ['search', 'find', 'query', 'lookup'],
+            'file': ['file', 'read', 'write', 'create', 'delete']
+        }
+        
+        for tool_name, tool_info in self.mcp_tools.items():
+            tool_lower = tool_name.lower()
+            for category, keywords in tool_patterns.items():
+                if category in tool_lower:
+                    if any(keyword in user_lower for keyword in keywords):
+                        return tool_name
+        
+        return None
