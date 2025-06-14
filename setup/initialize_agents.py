@@ -87,7 +87,7 @@ def run_mcp_setup_thread():
             
             # Create MCP agent
             logger.info("Creating MCP-aware agent")
-            mcp_agent = MCPAgent("mcp_agent", server_manager, tool_registry)
+            mcp_agent = MCPAgent("mcp_agent", server_manager)
             logger.debug(f"MCP agent created: {mcp_agent}")
             
             # Register MCP agent globally
