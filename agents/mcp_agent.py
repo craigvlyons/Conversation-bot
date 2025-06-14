@@ -75,27 +75,29 @@ class MCPAgent(BaseAgent):
             return f"Available MCP tools:\n{tool_list}"
         
         return "I'm the MCP Agent, but I need to be connected to other agents to process your request fully."
-
-    def get_all_mcp_tools(self) -> List[Dict[str, Any]]:
+        
+    def get_all_mcp_tools(self) -> Dict[str, Dict[str, Any]]:
         """
         Get all MCP tools available from the client
         
         Returns:
-            List of tool details
+            Dictionary of tool details keyed by tool name
         """
         if not hasattr(self, 'mcp_client') or not self.mcp_client:
-            return []
+            return {}
         
         tools = self.mcp_client.get_all_tools()
-        return [
-            {
+        result = {}
+        
+        for name, details in tools.items():
+            result[name] = {
                 "name": name,
                 "description": details.get("description", ""),
                 "parameters": details.get("parameters", {}),
-                "server_id": details.get("server_id", "unknown")
+                "server_id": details.get("server", "unknown")
             }
-            for name, details in tools.items()
-        ]
+        
+        return result
     
     def register_mcp_tools(self, tools_dict: Dict[str, Any]):
         """Register MCP tools with the agent"""

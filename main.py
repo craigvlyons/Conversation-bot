@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QApplication
 from qasync import QEventLoop
 from ui.chatwindow import ChatUI
 from utils.constants import GEMINI_KEY 
-import setup.initialize_agents_new as initialize_agents
+import setup.initialize_agents as initialize_agents
 
 
 async def shutdown_mcp_servers():

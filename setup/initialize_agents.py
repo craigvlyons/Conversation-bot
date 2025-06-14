@@ -9,98 +9,153 @@ from utils.mcp_client import MCPClient
 from utils.mcp_tool_registry import MCPToolRegistry
 import logging
 import asyncio
+import sys
+import traceback
+import threading
+
+# Configure logging to be more verbose
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="[%(asctime)s] %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
 logger = logging.getLogger(__name__)
 
+# Global variable to store the MCP components
+server_manager = None
+mcp_client = None
+tool_registry = None
+mcp_agent = None
+
 # Run MCP setup in a background thread to avoid blocking the UI
-import threading
-
-# Global variable to store the server manager
-server_manager_global = None
-
 def run_mcp_setup_thread():
     """Run MCP setup tasks in a separate thread"""
+    global server_manager, mcp_client, tool_registry, mcp_agent
+    
+    logger.debug("====== MCP SETUP THREAD STARTED ======")
     try:
         # Create a new event loop for this thread
+        logger.debug("Creating new event loop for MCP setup thread")
         thread_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(thread_loop)
+        logger.debug("Event loop created successfully")
         
         # Initialize MCP components
         logger.info("Initializing MCP Server Manager")
         server_manager = MCPServerManager()
+        logger.debug(f"Server manager created: {server_manager}")
         
         # Connect to MCP servers with timeout
         logger.info("Connecting to MCP servers")
-        server_manager.connect_to_servers(timeout=10)
-        
-        # Log connected servers
+        logger.debug(f"Available servers before connection: {list(server_manager.servers.keys())}")
+        server_manager.connect_to_servers(timeout=10)        # Log connected servers
         connected_servers = list(server_manager.connected_servers.keys())
         logger.info(f"Connected to {len(connected_servers)} MCP servers")
+        logger.debug(f"Connected servers: {connected_servers}")
         for server_id in connected_servers:
-            logger.info(f"  ✅ {server_id}")
+            server = server_manager.connected_servers[server_id]
+            logger.info(f"  ✅ {server_id} (URL: {server.url}, PID: {server.process.pid if server.process else 'None'})")
         
-        # We'll discover capabilities later if needed
-        # Don't block the UI thread for this
+        # Discover server capabilities
+        if connected_servers:
+            logger.info("Discovering server capabilities")
+            server_manager.discover_capabilities()
+            logger.debug("Server capabilities discovery completed")
         
-        # Store the server manager in the global state
-        global server_manager_global
-        server_manager_global = server_manager
+        if connected_servers:
+            # Set up MCP client
+            logger.info("Setting up MCP Client")
+            mcp_client = MCPClient(server_manager.servers)
+            logger.debug(f"MCP client created: {mcp_client}")
+            
+            # Initialize tool registry
+            logger.info("Initializing MCP Tool Registry")
+            tool_registry = MCPToolRegistry(mcp_client)
+            logger.debug(f"Tool registry created: {tool_registry}")
+            
+            logger.debug("Registering tools from MCP client")
+            tool_count = tool_registry.register_from_mcp_client()
+            logger.info(f"Registered {tool_count} MCP tools")
+            
+            # Log available tools
+            all_tools = mcp_client.get_all_tools()
+            logger.debug(f"Available tools from MCP client: {list(all_tools.keys()) if all_tools else 'None'}")
+            
+            # Create MCP agent
+            logger.info("Creating MCP-aware agent")
+            mcp_agent = MCPAgent("mcp_agent", server_manager, tool_registry)
+            logger.debug(f"MCP agent created: {mcp_agent}")
+            
+            # Register MCP agent globally
+            logger.debug("Registering MCP agent with AgentRegistry")
+            AgentRegistry.register("mcp", mcp_agent)
+            logger.info("Registered MCP agent")            # Register MCP tools with each agent if available
+            if tool_registry and mcp_agent:
+                logger.debug("Getting all MCP tools from agent")
+                tools = mcp_agent.get_all_mcp_tools()
+                logger.info(f"Registering {len(tools)} MCP tools with agents")
+                logger.debug(f"Tool names: {list(tools.keys())}")
+                
+                # Register tool metadata with regular agents
+                logger.debug("Checking if primary_agent is available")
+                if 'primary_agent' in globals():
+                    logger.debug("primary_agent exists in globals")
+                    for tool_name, tool_info in tools.items():
+                        logger.debug(f"Registering tool '{tool_name}' with primary agent")
+                        primary_agent.register_mcp_tool(tool_name, tool_info)
+                        
+                        logger.debug(f"Registering tool '{tool_name}' with secondary agent")
+                        secondary_agent.register_mcp_tool(tool_name, tool_info)
+                        
+                        logger.debug(f"Registering tool '{tool_name}' with fallback agent")
+                        fallback_agent.register_mcp_tool(tool_name, tool_info)
+                    
+                    # Enable MCP for all agents
+                    logger.debug("Enabling MCP for primary agent")
+                    primary_agent.enable_mcp()
+                    
+                    logger.debug("Enabling MCP for secondary agent")
+                    secondary_agent.enable_mcp()
+                    
+                    logger.debug("Enabling MCP for fallback agent")
+                    fallback_agent.enable_mcp()
+                    
+                    logger.info("MCP tools registered with all agents")
+                else:
+                    logger.warning("primary_agent not found in globals, cannot register tools with agents")
+            else:
+                logger.warning("tool_registry or mcp_agent is None, skipping tool registration")
+        else:
+            logger.warning("No MCP servers connected, skipping MCP client and tool setup")
         
         logger.info("MCP setup completed in background thread")
+        logger.debug("====== MCP SETUP THREAD COMPLETED ======")
     except Exception as e:
         logger.error(f"Error in MCP setup thread: {e}")
+        logger.error(traceback.format_exc())
 
 def run_setup():
     """Start the MCP setup process in a background thread and return immediately"""
-    # Start a background thread for MCP server setup
-    setup_thread = threading.Thread(
-        target=run_mcp_setup_thread,
-        name="mcp-setup-thread",
-        daemon=True  # Mark as daemon so it won't block application exit
-    )
-    setup_thread.start()
-    
-    # Return immediately - setup will continue in the background
-    logger.info("MCP setup started in background thread")
+    try:
+        # Start a background thread for MCP server setup
+        setup_thread = threading.Thread(
+            target=run_mcp_setup_thread,
+            name="mcp-setup-thread",
+            daemon=True  # Mark as daemon so it won't block application exit
+        )
+        setup_thread.start()
         
-        # Set up MCP client
-        mcp_client = MCPClient(server_manager.servers)
+        # Return immediately - setup will continue in the background
+        logger.info("MCP setup started in background thread")
         
-        # Initialize tool registry
-        logger.info("Initializing MCP Tool Registry")
-        tool_registry = MCPToolRegistry(mcp_client)
-        tool_count = tool_registry.register_from_mcp_client()
-        logger.info(f"Registered {tool_count} MCP tools")
-        
-        # Create MCP agent
-        logger.info("Creating MCP-aware agent")
-        mcp_agent: MCPAgent = MCPAgent("mcp_agent", server_manager, tool_registry)
-        
-        # Skip initialization since we've already set up the servers and tools
-        
-        # Return the MCP components
-        return {
-            "server_manager": server_manager,
-            "mcp_client": mcp_client,
-            "tool_registry": tool_registry,
-            "mcp_agent": mcp_agent
-        }
-    except Exception as e:
-        logger.error(f"Error in setup: {e}")
+        # Return empty dictionary since the real initialization happens in the background
         return {}
-    finally:
-        # Only close the loop if we created a new one
-        if close_loop:
-            loop.close()
-
-# Initialize MCP components
-mcp_components = run_setup()
-
-# Get MCP components
-server_manager = mcp_components.get("server_manager")
-mcp_client = mcp_components.get("mcp_client")
-tool_registry = mcp_components.get("tool_registry")
-mcp_agent: MCPAgent = mcp_components.get("mcp_agent")
+    except Exception as e:
+        logger.error(f"Error starting MCP setup thread: {e}")
+        return {}
 
 # Instantiate core agents
 primary_agent = GeminiAIAgent(api_key=GEMINI_KEY)       # Gemini - is probably good enough for basic tasks and cheap.
@@ -114,25 +169,5 @@ AgentRegistry.register("gemini", primary_agent)
 AgentRegistry.register("gpt4o", fallback_agent)
 AgentRegistry.register("gemini2", secondary_agent)
 
-# Register MCP agent if available
-if mcp_agent:
-    AgentRegistry.register("mcp", mcp_agent)
-    logger.info("Registered MCP agent")
-
-# Register MCP tools with each agent if available
-if tool_registry and mcp_agent:
-    tools = mcp_agent.get_all_mcp_tools()
-    logger.info(f"Registering {len(tools)} MCP tools with agents")
-    
-    # Register tool metadata with regular agents
-    for tool_name, tool_info in tools.items():
-        primary_agent.register_mcp_tool(tool_name, tool_info)
-        secondary_agent.register_mcp_tool(tool_name, tool_info)
-        fallback_agent.register_mcp_tool(tool_name, tool_info)
-    
-    # Enable MCP for all agents
-    primary_agent.enable_mcp()
-    secondary_agent.enable_mcp()
-    fallback_agent.enable_mcp()
-    
-    logger.info("MCP tools registered with all agents")
+# Start the MCP setup process in the background
+run_setup()
