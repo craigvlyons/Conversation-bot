@@ -271,31 +271,72 @@ class ChatUI(QMainWindow):
     def _call_agent_sync(self, text):
         """Call agent synchronously to avoid async/await issues"""
         try:
-            # Get the agent from registry
-            from agents.registry import AgentRegistry
-            agent = AgentRegistry.get_active_agent()
-            
-            if agent:
+            # Use the agent passed to constructor
+            if self.agent:
                 # Call agent's synchronous method if available
-                if hasattr(agent, 'get_response_sync'):
-                    return agent.get_response_sync(text)
-                elif hasattr(agent, 'get_response'):
+                if hasattr(self.agent, 'get_response_sync'):
+                    return self.agent.get_response_sync(text)
+                elif hasattr(self.agent, 'get_response'):
                     # If only async method available, run it carefully
                     import asyncio
                     try:
                         loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(loop)
-                        result = loop.run_until_complete(agent.get_response(text))
+                        result = loop.run_until_complete(self.agent.get_response(text))
                         loop.close()
                         return result
                     except Exception as e:
                         return f"Async error: {e}"
+                elif hasattr(self.agent, 'chat'):
+                    # Try the chat method if available
+                    return self.agent.chat(text)
                 else:
-                    return "Agent has no response method available"
+                    # If user asks about tools, provide MCP tool information
+                    if 'tool' in text.lower():
+                        return self._get_tools_info()
+                    else:
+                        # List available methods for debugging
+                        methods = [method for method in dir(self.agent) if not method.startswith('_') and callable(getattr(self.agent, method))]
+                        return f"Agent methods available: {methods[:10]}..."  # Show first 10 methods
             else:
-                return "No active agent available"
+                return "No agent available in UI"
         except Exception as e:
             return f"Agent call error: {e}"
+                        
+    def _get_tools_info(self):
+        """Get information about available tools"""
+        try:
+            info = []
+            
+            # Check for regular tools
+            if hasattr(self.agent, 'tools') and self.agent.tools:
+                info.append(f"Regular tools: {len(self.agent.tools)}")
+                for tool in self.agent.tools[:3]:  # Show first 3
+                    if hasattr(tool, 'name'):
+                        info.append(f"  - {tool.name()}")
+                        
+            # Check for MCP tools
+            if hasattr(self.agent, 'get_all_mcp_tools'):
+                mcp_tools = self.agent.get_all_mcp_tools()
+                if mcp_tools:
+                    info.append(f"MCP tools: {len(mcp_tools)}")
+                    for tool_name in list(mcp_tools.keys())[:3]:  # Show first 3
+                        info.append(f"  - {tool_name}")
+                else:
+                    info.append("MCP tools: 0 (SSE server tool discovery not yet implemented)")
+                    
+            # Check MCP status
+            if hasattr(self.agent, 'mcp_enabled'):
+                status = "enabled" if self.agent.mcp_enabled else "disabled"
+                info.append(f"MCP integration: {status}")
+                
+            if info:
+                return "\n".join(info)
+            else:
+                return "No tool information available"
+                
+        except Exception as e:
+            return f"Error getting tool info: {e}"
 
     async def get_agent_response(self, text):
          # Get conversation history for LLM context (excluding current input)
