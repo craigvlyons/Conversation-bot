@@ -65,6 +65,16 @@ class MCPAgent(BaseAgent):
         
         # Fallback to dynamic discovery
         print("🔄 Falling back to dynamic tool discovery...")
+        
+        # First ensure servers are connected
+        print("🔗 Connecting to MCP servers...")
+        self.server_manager.connect_to_servers(timeout=15)
+        
+        if not self.server_manager.connected_servers:
+            print("❌ No MCP servers connected")
+        else:
+            print(f"✅ Connected to {len(self.server_manager.connected_servers)} servers")
+        
         discovered_tools = await self.tool_manager.discover_all_tools()
         
         if discovered_tools:

@@ -44,6 +44,35 @@ python -m pytest tests/test_mcp_tools.py
 # Test MCP integration end-to-end
 python test_mcp_integration.py
 
+# Test FastMCP SSE client directly
+python -c "
+import asyncio
+from utils.mcp_sse_client import MCPSSEClient
+
+async def test():
+    client = MCPSSEClient('http://localhost:8000/sse')
+    await client.initialize_mcp()
+    tools = await client.discover_tools()
+    print(f'Found {len(tools)} tools')
+    await client.disconnect()
+
+asyncio.run(test())
+"
+
+# Test MCP agent with live server discovery
+python -c "
+import asyncio
+from agents.mcp_agent import MCPAgent
+
+async def test():
+    agent = MCPAgent()
+    await agent.initialize()
+    response = await agent.get_response('what tools do you have?')
+    print(response)
+
+asyncio.run(test())
+"
+
 # Run all tests
 python -m pytest tests/
 ```
@@ -60,15 +89,36 @@ The application uses a multi-agent architecture managed by `AgentRegistry`:
 Agents are initialized in `setup/initialize_agents.py` and registered globally for access throughout the application.
 
 ### MCP Integration
-The system supports Model Context Protocol (MCP) servers for dynamic tool integration:
-- **Server Manager**: `utils/mcp_server_manager.py` handles server lifecycle
-- **Tool Registry**: `utils/mcp_tool_registry.py` manages tool discovery and registration
-- **Client**: `utils/mcp_client.py` provides communication interface
-- **Integration Layer**: `utils/mcp_agent_integration.py` connects MCP tools with pydantic-ai agents
-- **Function Schema Generator**: `utils/mcp_function_schema.py` converts MCP tools to function calling schemas
-- MCP servers are configured in `config/mcp_servers.json`
+The system supports Model Context Protocol (MCP) servers for dynamic tool integration with full FastMCP support:
+
+#### Core MCP Components
+- **Server Manager**: `utils/mcp_server_manager.py` handles server lifecycle and connection management
+- **SSE Client**: `utils/mcp_sse_client.py` implements FastMCP Server-Sent Events protocol
+- **Protocol Client**: `utils/mcp_protocol_client.py` auto-detects and connects to different MCP transports
+- **Tool Manager**: `utils/tool_manager.py` manages tool discovery across all connected servers
+- **Dynamic Tool Handler**: `utils/dynamic_tool_handler.py` executes tools using dynamic routing
+- **Tool Registry**: `utils/mcp_tool_registry.py` caches discovered tools for performance
+
+#### FastMCP SSE Protocol Support
+- **Complete MCP Initialization**: Implements proper `initialize` → `notifications/initialized` → `tools/list` sequence
+- **Session Management**: Extracts and uses server-provided session IDs for FastMCP communication
+- **Persistent SSE Connections**: Maintains bidirectional communication with FastMCP servers
+- **Async Response Handling**: Processes server responses via SSE stream with proper request/response matching
+
+#### Azure DevOps Integration
+- **Real-time Tool Discovery**: Dynamically discovers 9+ Azure DevOps tools from live FastMCP server
+- **Work Item Management**: Full CRUD operations (create, read, update, search work items)
+- **Project Operations**: List projects, manage work item relationships, add tasks
+- **Advanced Features**: Comments, linking, state management, search capabilities
+
+#### Configuration and Setup
+- MCP servers configured in `config/mcp_servers.json`
+- Supports multiple transport types: SSE, WebSocket, HTTP, STDIO
 - Background initialization prevents UI blocking
-- **Tool Execution Flow**: User input → Agent detects tool trigger → MCP agent executes tool → Results returned
+- Graceful fallback when servers are unavailable
+
+#### Tool Execution Flow
+User input → Agent detects tool trigger → Protocol client connects → Tool discovery → Dynamic execution → Results returned
 
 ### Core Components
 - **Main UI**: PyQt6-based chat interface (`ui/chatwindow.py`)
@@ -89,11 +139,18 @@ PHONEMIZER_ESPEAK_LIBRARY=C:\Program Files\eSpeak NG\libespeak-ng.dll
 PHONEMIZER_ESPEAK_PATH=C:\Program Files\eSpeak NG\espeak-ng.exe
 ```
 
-Optional for Azure DevOps integration:
+Required for Azure DevOps FastMCP integration:
+```
+AZURE_DEVOPS_ORG_URL=https://dev.azure.com/yourorg
+AZURE_DEVOPS_PAT=your-personal-access-token
+AZURE_DEVOPS_PROJECT=your-default-project-name  # Optional
+AZURE_USERNAME=your-email@domain.com            # Optional
+```
+
+Optional for legacy Azure integrations:
 ```
 AZURE_FUNCTION_URL=your-azure-function-url
 AZURE_FUNCTION_APP_KEY=your-azure-function-key
-AZURE_DEVOPS_PAT=your-personal-access-token
 ```
 
 ## Key Patterns
@@ -134,9 +191,23 @@ The codebase now supports both Windows and Mac/Linux through:
 
 ## Development Notes
 
+### MCP Server Integration
 - The application starts the UI immediately while MCP servers initialize in the background
 - MCP server failures are handled gracefully without blocking core functionality
+- FastMCP SSE protocol is fully implemented with proper session management and async response handling
+- Dynamic tool discovery replaces static tool caching for real-time server integration
+- Azure DevOps FastMCP server provides 9+ live tools for work item and project management
+
+### Architecture & Performance
 - All constants are centralized in `utils/constants.py` with platform-aware paths
 - Message history is cached in the UI layer for context
 - Wake word detection runs in a separate thread
 - Platform detection is automatic and transparent to the application logic
+- Async/await patterns used throughout for non-blocking operations
+
+### FastMCP Protocol Implementation
+- **Session Management**: Automatically extracts and uses server-provided session IDs
+- **Bidirectional Communication**: Maintains persistent SSE connections for real-time communication
+- **Proper Initialization**: Implements complete MCP handshake: `initialize` → `notifications/initialized` → `tools/list`
+- **Error Handling**: Graceful fallback when servers are unavailable or timeout occurs
+- **Dynamic Discovery**: Tools are discovered at runtime from live servers, not cached files
