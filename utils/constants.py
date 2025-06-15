@@ -27,6 +27,8 @@ except ImportError:
 GEMINI_KEY = os.getenv("GEMINI_KEY")
 # Picovoice/Porcupine Key
 PRORCUPINE_KEY = os.getenv("PRORCUPINE_KEY")
+# Wake word detection toggle (set to False to disable on Mac)
+ENABLE_WAKE_WORD = os.getenv("ENABLE_WAKE_WORD", "true").lower() in ["true", "1", "yes"]
 # eSpeak NG Phonemizer paths
 # PHONEMIZER_ESPEAK_LIBRARY = os.getenv("PHONEMIZER_ESPEAK_LIBRARY")
 # PHONEMIZER_ESPEAK_PATH = os.getenv("PHONEMIZER_ESPEAK_PATH")

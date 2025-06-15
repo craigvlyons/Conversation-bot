@@ -10,11 +10,21 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtGui import QPixmap, QIcon
 from PyQt6.QtCore import Qt, QTimer, QEvent, pyqtSignal
 from speech.stt.stt import STT
-from speech.tts.KokoroTTS import KokoroTTS
 from recording.AutoRecorder import AudioRecorder
-from speech.wake_word.wake_word_detector import WakeWordDetector
-from speech.wake_word.wake_word_thread import WakeWordThread
-from utils.constants import PRORCUPINE_KEY
+
+# Conditional imports for TTS and wake word components
+try:
+    from speech.tts.KokoroTTS import KokoroTTS
+except ImportError:
+    KokoroTTS = None
+
+try:
+    from speech.wake_word.wake_word_detector import WakeWordDetector
+    from speech.wake_word.wake_word_thread import WakeWordThread
+except ImportError:
+    WakeWordDetector = None
+    WakeWordThread = None
+from utils.constants import PRORCUPINE_KEY, ENABLE_WAKE_WORD
 from services.tool_service import ToolService
 
 
@@ -47,12 +57,41 @@ class ChatUI(QMainWindow):
         self.setFixedSize(540, 100)  # Start with small height
         self.old_pos = None
         self.voice = voice = 10  # AF_SKY or map your Enum
-        self.tts = KokoroTTS()
+        # Initialize TTS if available
+        if KokoroTTS is not None:
+            try:
+                self.tts = KokoroTTS()
+                print("✅ TTS initialized")
+            except Exception as e:
+                print(f"⚠️ TTS failed to initialize: {e}")
+                self.tts = None
+        else:
+            print("⚠️ TTS not available - text responses only")
+            self.tts = None
+            
         self.stt = STT()
         self.auto = AudioRecorder(silence_duration=2.0)
-        self.detector = WakeWordDetector(PRORCUPINE_KEY, sensitivities=[0.7])
-        self.wake_thread = WakeWordThread(self.detector)
-        self.wake_thread.wake_word_detected.connect(self.on_voice_triggered)
+        
+        # Initialize wake word detection only if enabled, key is available, and components exist
+        self.wake_word_enabled = (ENABLE_WAKE_WORD and 
+                                 PRORCUPINE_KEY is not None and 
+                                 WakeWordDetector is not None and 
+                                 WakeWordThread is not None)
+        if self.wake_word_enabled:
+            try:
+                self.detector = WakeWordDetector(PRORCUPINE_KEY, sensitivities=[0.7])
+                self.wake_thread = WakeWordThread(self.detector)
+                self.wake_thread.wake_word_detected.connect(self.on_voice_triggered)
+                print("✅ Wake word detection initialized")
+            except Exception as e:
+                print(f"⚠️ Wake word detection failed to initialize: {e}")
+                self.wake_word_enabled = False
+                self.detector = None
+                self.wake_thread = None
+        else:
+            print("⚠️ Wake word detection disabled or not available")
+            self.detector = None
+            self.wake_thread = None
 
 
         # Main widget and layout
@@ -216,12 +255,15 @@ class ChatUI(QMainWindow):
             pixmap = QPixmap(os.path.join(images_dir, "mic_green.png")).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             self.mic_btn.setIcon(QIcon(pixmap))
 
-            # ✅ RECREATE the wake thread if it's not running
-            if not self.wake_thread.isRunning():
-                self.wake_thread = WakeWordThread(self.detector)
-                self.wake_thread.wake_word_detected.connect(self.on_voice_triggered)
+            # ✅ Start wake word detection if enabled
+            if self.wake_word_enabled and self.wake_thread:
+                if not self.wake_thread.isRunning():
+                    self.wake_thread = WakeWordThread(self.detector)
+                    self.wake_thread.wake_word_detected.connect(self.on_voice_triggered)
                 
-            self.wake_thread.start()
+                self.wake_thread.start()
+            else:
+                print("⚠️ Wake word detection not available - mic will work for manual recording only")
         else:
             # Listening OFF
             self.chat_input.setPlaceholderText("Ask anything")
@@ -229,7 +271,8 @@ class ChatUI(QMainWindow):
             pixmap = QPixmap(os.path.join(images_dir, "mic_white.png")).scaled(28, 28, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             self.mic_btn.setIcon(QIcon(pixmap))
 
-            self.wake_thread.stop()
+            if self.wake_word_enabled and self.wake_thread:
+                self.wake_thread.stop()
 
     def display_last_messages(self):
         # Clear current messages
@@ -322,7 +365,7 @@ class ChatUI(QMainWindow):
         else:
             self.add_message("Jarvis", response)
 
-        if self.mic_selected:
+        if self.mic_selected and self.tts is not None:
             # Run synthesize and play_audio in background thread to avoid blocking the UI
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(None, self.tts.synthesize, response, self.voice)
@@ -341,8 +384,9 @@ class ChatUI(QMainWindow):
         # Step 1: Show speaking prompt
         self.chat_input.setPlaceholderText("...")
 
-        await loop.run_in_executor(None, self.tts.synthesize, "How can I help you?", self.voice)
-        await loop.run_in_executor(None, self.tts.play_audio)
+        if self.tts is not None:
+            await loop.run_in_executor(None, self.tts.synthesize, "How can I help you?", self.voice)
+            await loop.run_in_executor(None, self.tts.play_audio)
 
         # Step 2: Show "Listening..." placeholder AFTER speaking finishes
         self.chat_input.setPlaceholderText("Listening...")
@@ -352,8 +396,9 @@ class ChatUI(QMainWindow):
         # Now do the recording
         recording = await loop.run_in_executor(None, self.auto.record)
         if not recording:
-            await loop.run_in_executor(None, self.tts.synthesize, "Sorry, I didn't get that.", self.voice)
-            await loop.run_in_executor(None, self.tts.play_audio)
+            if self.tts is not None:
+                await loop.run_in_executor(None, self.tts.synthesize, "Sorry, I didn't get that.", self.voice)
+                await loop.run_in_executor(None, self.tts.play_audio)
             self.chat_input.setPlaceholderText("Ask anything")
             self.chat_input.setReadOnly(False)
             QApplication.processEvents()  # <-- Force UI update

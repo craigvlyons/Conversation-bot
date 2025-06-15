@@ -1,6 +1,6 @@
 .env
 .venv/
-.venv
+venv-3.12/
 __pycache__/
 *.pyc
 *.ppn
@@ -13,3 +13,5 @@ Kokoro/*
 *Scripts
 *share
 *.cfg
+*.DS_Store
+*.egg-info/

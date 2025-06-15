@@ -118,26 +118,48 @@ class MCPAgent(BaseAgent):
         Returns:
             Dictionary of tool details keyed by tool name
         """
-        discovered_tools = self.tool_manager.get_all_tools()
-        result = {}
+        # Use the base agent's MCP tools registry instead of dynamic discovery
+        return super().get_all_mcp_tools()
         
-        for name, tool in discovered_tools.items():
-            result[name] = {
-                "name": name,
-                "description": tool.description,
-                "schema": tool.schema,
-                "server_id": tool.server_id,
-                "metadata": tool.metadata
-            }
-        
-        return result
+    def get_mcp_tools(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Alias for get_all_mcp_tools for backward compatibility.
+        """
+        return self.get_all_mcp_tools()
     
     def _get_tools_summary(self) -> str:
         """Get a formatted summary of all available tools."""
         if not self.tools_discovered:
             return "Tool discovery has not completed yet."
         
-        return self.tool_manager.get_tool_info_summary()
+        # Get tools from the agent's own MCP tools registry
+        mcp_tools = self.get_all_mcp_tools()
+        
+        if not mcp_tools:
+            return "No MCP tools are currently available."
+        
+        # Format tools by category/server
+        tool_summary = f"I have access to {len(mcp_tools)} MCP tools:\n\n"
+        
+        # Group tools by server
+        tools_by_server = {}
+        for tool_name, tool_info in mcp_tools.items():
+            server_id = tool_info.get("server_id", "unknown")
+            if server_id not in tools_by_server:
+                tools_by_server[server_id] = []
+            tools_by_server[server_id].append({
+                "name": tool_name,
+                "description": tool_info.get("description", "No description")
+            })
+        
+        # Format output
+        for server_id, tools in tools_by_server.items():
+            tool_summary += f"**{server_id.title()} Tools** ({len(tools)} tools):\n"
+            for tool in tools:
+                tool_summary += f"- `{tool['name']}`: {tool['description']}\n"
+            tool_summary += "\n"
+        
+        return tool_summary
     
     def register_mcp_tool(self, tool_name: str, tool_info: dict):
         """

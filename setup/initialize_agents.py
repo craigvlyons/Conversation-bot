@@ -90,6 +90,10 @@ def run_mcp_setup_thread():
             mcp_agent = MCPAgent("mcp_agent", server_manager, tool_registry)
             logger.debug(f"MCP agent created: {mcp_agent}")
             
+            # Initialize the MCP agent to load tools
+            logger.info("Initializing MCP agent with tools")
+            thread_loop.run_until_complete(mcp_agent.initialize())
+            
             # Register MCP agent globally
             logger.debug("Registering MCP agent with AgentRegistry")
             AgentRegistry.register("mcp", mcp_agent)
@@ -105,31 +109,18 @@ def run_mcp_setup_thread():
                 logger.info(f"Registering {len(tools)} MCP tools with agents")
                 logger.debug(f"Tool names: {list(tools.keys())}")
                 
-                # Register MCP tools with enhanced agents
-                logger.debug("Registering MCP tools with enhanced agents")
+                # Enable pure dynamic MCP routing - tools are executed via MCP Agent, not as agent functions
+                logger.debug("Enabling dynamic MCP routing for agents")
                 try:
-                    # Register with primary agent
-                    logger.debug("Registering MCP tools with primary agent")
-                    for tool_name, tool_info in tools.items():
-                        primary_agent.register_mcp_tool(tool_name, tool_info)
+                    # Enable MCP awareness for routing without registering tools as functions
                     primary_agent.enable_mcp()
-                    primary_agent.setup_mcp_integration(tools)
-                    
-                    # Register with secondary agent  
-                    logger.debug("Registering MCP tools with secondary agent")
-                    for tool_name, tool_info in tools.items():
-                        secondary_agent.register_mcp_tool(tool_name, tool_info)
-                    secondary_agent.enable_mcp()
-                    secondary_agent.setup_mcp_integration(tools)
-                    
-                    # Register with fallback agent
-                    logger.debug("Registering MCP tools with fallback agent")
-                    for tool_name, tool_info in tools.items():
-                        fallback_agent.register_mcp_tool(tool_name, tool_info)
+                    secondary_agent.enable_mcp() 
                     fallback_agent.enable_mcp()
-                    fallback_agent.setup_mcp_integration(tools)
                     
-                    logger.info("MCP tools registered with all agents")
+                    # NOTE: Not calling setup_mcp_integration() - this would register tools as pydantic-ai functions
+                    # Instead, tools are executed dynamically by routing to the MCP Agent
+                    
+                    logger.info(f"MCP routing enabled for all agents - {len(tools)} tools available via dynamic execution")
                     
                 except Exception as e:
                     logger.error(f"Error registering MCP tools with agents: {e}")
