@@ -1,7 +1,7 @@
 {
   "azure-devops": {
-    "url": "http://127.0.0.1:8000/sse",
-    "description": "Azure DevOps MCP Server",
+    "url": "http://localhost:8000/sse",
+    "description": "Azure DevOps MCP Server - Real server on network",
     "enabled": true
   },
   "playwright": {

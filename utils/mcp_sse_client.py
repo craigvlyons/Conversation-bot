@@ -111,29 +111,52 @@ class MCPSSEClient:
         try:
             logger.info("🔍 Discovering tools via SSE...")
             
-            tools_request = {
-                "jsonrpc": "2.0",
-                "id": self._get_request_id(),
-                "method": "getTools",  # Azure DevOps server uses getTools instead of tools/list
-                "params": {}
-            }
+            # Try multiple method names to find the one that works
+            method_names = [
+                "tools/list",    # Standard MCP
+                "getTools",      # FastMCP style
+                "list_tools",    # Alternative
+                "tools",         # Simple name
+                "listTools",     # CamelCase version
+            ]
             
-            response = await self._send_request(tools_request)
-            
-            if response and "result" in response:
-                # Handle different response formats
-                result = response["result"]
-                if isinstance(result, list):
-                    # Direct array of tools
-                    tools = result
+            for method_name in method_names:
+                logger.debug(f"Trying method: {method_name}")
+                
+                tools_request = {
+                    "jsonrpc": "2.0",
+                    "id": self._get_request_id(),
+                    "method": method_name,
+                    "params": {}
+                }
+                
+                response = await self._send_request(tools_request)
+                
+                if response and "result" in response:
+                    # Handle different response formats
+                    result = response["result"]
+                    if isinstance(result, list):
+                        # Direct array of tools
+                        tools = result
+                    else:
+                        # Tools nested in result.tools
+                        tools = result.get("tools", [])
+                    logger.info(f"✅ Discovered {len(tools)} tools via SSE using method '{method_name}'")
+                    return tools
+                elif response and "error" in response:
+                    error_code = response["error"].get("code", 0)
+                    if error_code == -32601:  # Method not found
+                        logger.debug(f"Method '{method_name}' not found, trying next...")
+                        continue
+                    else:
+                        logger.warning(f"Error with method '{method_name}': {response['error']}")
+                        continue
                 else:
-                    # Tools nested in result.tools
-                    tools = result.get("tools", [])
-                logger.info(f"✅ Discovered {len(tools)} tools via SSE")
-                return tools
-            else:
-                logger.warning(f"⚠️ No tools found in SSE response: {response}")
-                return []
+                    logger.debug(f"No result from method '{method_name}', trying next...")
+                    continue
+            
+            logger.warning(f"⚠️ No working method found for tool discovery")
+            return []
                 
         except Exception as e:
             logger.error(f"❌ Tool discovery error: {e}")
@@ -147,7 +170,7 @@ class MCPSSEClient:
             tool_request = {
                 "jsonrpc": "2.0",
                 "id": self._get_request_id(),
-                "method": "callTool",  # Correct method name for this Azure DevOps server
+                "method": "tools/call",  # Standard MCP method name
                 "params": {
                     "name": tool_name,
                     "arguments": arguments

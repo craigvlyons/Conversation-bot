@@ -1,5 +1,10 @@
 {
   "categories": {
+    "devops": [
+      "get_work_items",
+      "create_work_item",
+      "update_work_item"
+    ],
     "browser": [
       "browser_close",
       "browser_resize",
@@ -26,14 +31,77 @@
       "browser_tab_close",
       "browser_generate_playwright_test",
       "browser_wait_for"
-    ],
-    "devops": [
-      "get_work_items",
-      "create_work_item",
-      "update_work_item"
     ]
   },
   "metadata": {
+    "get_work_items": {
+      "name": "get_work_items",
+      "description": "Get list of work items from Azure DevOps",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project name"
+          },
+          "status": {
+            "type": "string",
+            "description": "Filter by status"
+          }
+        }
+      },
+      "server": "azure-devops"
+    },
+    "create_work_item": {
+      "name": "create_work_item",
+      "description": "Create a new work item in Azure DevOps",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Work item title"
+          },
+          "description": {
+            "type": "string",
+            "description": "Work item description"
+          },
+          "type": {
+            "type": "string",
+            "description": "Work item type"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "server": "azure-devops"
+    },
+    "update_work_item": {
+      "name": "update_work_item",
+      "description": "Update an existing work item",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Work item ID"
+          },
+          "status": {
+            "type": "string",
+            "description": "New status"
+          },
+          "assignee": {
+            "type": "string",
+            "description": "Assign to user"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "server": "azure-devops"
+    },
     "browser_close": {
       "name": "browser_close",
       "description": "Close the page",
@@ -680,77 +748,12 @@
         "openWorldHint": true
       },
       "server": "playwright"
-    },
-    "get_work_items": {
-      "name": "get_work_items",
-      "description": "Get list of work items from Azure DevOps",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "project": {
-            "type": "string",
-            "description": "Project name"
-          },
-          "status": {
-            "type": "string",
-            "description": "Filter by status"
-          }
-        }
-      },
-      "server": "azure-devops"
-    },
-    "create_work_item": {
-      "name": "create_work_item",
-      "description": "Create a new work item in Azure DevOps",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "title": {
-            "type": "string",
-            "description": "Work item title"
-          },
-          "description": {
-            "type": "string",
-            "description": "Work item description"
-          },
-          "type": {
-            "type": "string",
-            "description": "Work item type"
-          }
-        },
-        "required": [
-          "title"
-        ]
-      },
-      "server": "azure-devops"
-    },
-    "update_work_item": {
-      "name": "update_work_item",
-      "description": "Update an existing work item",
-      "inputSchema": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "integer",
-            "description": "Work item ID"
-          },
-          "status": {
-            "type": "string",
-            "description": "New status"
-          },
-          "assignee": {
-            "type": "string",
-            "description": "Assign to user"
-          }
-        },
-        "required": [
-          "id"
-        ]
-      },
-      "server": "azure-devops"
     }
   },
   "enabled": {
+    "get_work_items": true,
+    "create_work_item": true,
+    "update_work_item": true,
     "browser_close": true,
     "browser_resize": true,
     "browser_console_messages": true,
@@ -775,9 +778,6 @@
     "browser_tab_select": true,
     "browser_tab_close": true,
     "browser_generate_playwright_test": true,
-    "browser_wait_for": true,
-    "get_work_items": true,
-    "create_work_item": true,
-    "update_work_item": true
+    "browser_wait_for": true
   }
 }
