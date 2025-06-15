@@ -7,6 +7,7 @@ from agents.base_agent import BaseAgent
 from utils.mcp_server_manager import MCPServerManager
 from utils.tool_manager import ToolManager
 from utils.dynamic_tool_handler import DynamicToolHandler, ToolRouter
+from utils.mcp_tool_registry import MCPToolRegistry
 
 class MCPAgent(BaseAgent):
     """
@@ -15,11 +16,13 @@ class MCPAgent(BaseAgent):
     """
     
     def __init__(self, name: str = "mcp_agent", 
-                 server_manager: Optional[MCPServerManager] = None):
+                 server_manager: Optional[MCPServerManager] = None,
+                 tool_registry: Optional[MCPToolRegistry] = None):
         super().__init__(name)
         
         # Set up MCP components with new dynamic system
         self.server_manager = server_manager or MCPServerManager()
+        self.tool_registry = tool_registry  # Use cached tool registry if available
         self.tool_manager = ToolManager(self.server_manager)
         self.tool_handler = DynamicToolHandler(self.tool_manager)
         self.tool_router = ToolRouter(self.tool_manager)
@@ -32,13 +35,36 @@ class MCPAgent(BaseAgent):
         self.enable_mcp()
     
     async def initialize(self):
-        """Initialize the agent by discovering tools from all connected servers"""
+        """Initialize the agent by using cached tools or discovering from servers"""
         if self.initialized:
             return
         
-        print("🔧 Initializing MCP Agent with dynamic tool discovery...")
+        print("🔧 Initializing MCP Agent...")
         
-        # Discover all tools from connected servers
+        # First try to use cached tools from tool registry
+        if self.tool_registry:
+            print("📋 Using cached tools from tool registry...")
+            cached_tools = self.tool_registry.get_tools_for_agent()
+            
+            if cached_tools:
+                # Register cached tools with the base agent
+                for tool_name, tool_info in cached_tools.items():
+                    self.register_mcp_tool(tool_name, {
+                        "description": tool_info.get("description", ""),
+                        "schema": tool_info.get("inputSchema", {}),
+                        "server_id": tool_info.get("server", "unknown"),
+                        "metadata": tool_info
+                    })
+                
+                self.tools_discovered = True
+                print(f"✅ MCP Agent initialized with {len(cached_tools)} cached tools")
+                self.initialized = True
+                return
+            else:
+                print("⚠️ No cached tools found in registry")
+        
+        # Fallback to dynamic discovery
+        print("🔄 Falling back to dynamic tool discovery...")
         discovered_tools = await self.tool_manager.discover_all_tools()
         
         if discovered_tools:
@@ -52,7 +78,7 @@ class MCPAgent(BaseAgent):
                 })
             
             self.tools_discovered = True
-            print(f"✅ MCP Agent initialized with {len(discovered_tools)} tools")
+            print(f"✅ MCP Agent initialized with {len(discovered_tools)} discovered tools")
         else:
             print("⚠️ No tools discovered during MCP Agent initialization")
         

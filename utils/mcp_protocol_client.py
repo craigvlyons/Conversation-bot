@@ -18,6 +18,7 @@ class ProtocolType(Enum):
     SSE = "sse"
     WEBSOCKET = "websocket" 
     HTTP = "http"
+    STDIO = "stdio"
     UNKNOWN = "unknown"
 
 class MCPProtocolClient:
@@ -103,16 +104,16 @@ class MCPProtocolClient:
             
             # For process-based servers, try to detect from common patterns
             if self.server.process or self.server.command:
-                # Playwright MCP typically uses WebSocket or HTTP
+                # Most MCP servers launched via process use stdio for communication
                 if 'playwright' in self.server.id.lower():
-                    # Try WebSocket first for Playwright
-                    logger.debug("Playwright server detected, trying WebSocket")
-                    return ProtocolType.WEBSOCKET
+                    # Playwright MCP uses stdio (stdin/stdout) for communication
+                    logger.debug("Playwright server detected, using stdio")
+                    return ProtocolType.STDIO
                 
-                # Other npm-based MCP servers often use HTTP
+                # Other npm-based MCP servers also typically use stdio
                 if self.server.command and 'npx' in self.server.command:
-                    logger.debug("NPX-based server detected, trying HTTP")
-                    return ProtocolType.HTTP
+                    logger.debug("NPX-based server detected, trying stdio first")
+                    return ProtocolType.STDIO
             
             # Try to probe the server to determine protocol
             protocol = await self._probe_server_protocol()
