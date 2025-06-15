@@ -165,18 +165,86 @@ def run_setup():
         logger.error(f"Error starting MCP setup thread: {e}")
         return {}
 
+# Check for required API keys and provide better error handling
+def validate_api_keys():
+    """Validate that at least one AI API key is available"""
+    if not GEMINI_KEY and not OPENAI_KEY:
+        logger.error("❌ No AI API keys found! Please set GEMINI_KEY and/or OPENAI_KEY in your .env file")
+        logger.error("   Without API keys, the AI agents cannot function properly.")
+        logger.error("   The application will continue but AI functionality will be limited.")
+        return False
+    
+    available_keys = []
+    if GEMINI_KEY:
+        available_keys.append("GEMINI_KEY")
+    if OPENAI_KEY:
+        available_keys.append("OPENAI_KEY")
+    
+    logger.info(f"✅ Found API keys: {', '.join(available_keys)}")
+    return True
+
+# Validate API keys
+api_keys_available = validate_api_keys()
+
 # Instantiate core agents with MCP enhancement capability
 # Note: We'll use regular agents initially and enhance them when MCP tools are available
-primary_agent = GeminiAIAgent(api_key=GEMINI_KEY)       # Gemini - is probably good enough for basic tasks and cheap.
-fallback_agent = GPT4oAgent(api_key=OPENAI_KEY)         # GPT - is probably better for code, then Gemini
-secondary_agent = GeminiAIAgent2(api_key=GEMINI_KEY)    # Gemini2 - is probably better for more complex tasks, then Gemini 1.
-
-# Register them globally
-AgentRegistry.register("primary", primary_agent)
-AgentRegistry.register("fallback", fallback_agent)
-AgentRegistry.register("gemini", primary_agent)
-AgentRegistry.register("gpt4o", fallback_agent)
-AgentRegistry.register("gemini2", secondary_agent)
+try:
+    if GEMINI_KEY:
+        primary_agent = GeminiAIAgent(api_key=GEMINI_KEY)       # Gemini - is probably good enough for basic tasks and cheap.
+        secondary_agent = GeminiAIAgent2(api_key=GEMINI_KEY)    # Gemini2 - is probably better for more complex tasks, then Gemini 1.
+        logger.info("✅ Gemini agents initialized successfully")
+    else:
+        primary_agent = None
+        secondary_agent = None
+        logger.warning("⚠️ Gemini agents not initialized - no GEMINI_KEY found")
+    
+    if OPENAI_KEY:
+        fallback_agent = GPT4oAgent(api_key=OPENAI_KEY)         # GPT - is probably better for code, then Gemini
+        logger.info("✅ OpenAI agent initialized successfully")
+    else:
+        fallback_agent = None
+        logger.warning("⚠️ OpenAI agent not initialized - no OPENAI_KEY found")
+    
+    # Ensure at least one agent is available
+    if not primary_agent and not fallback_agent:
+        logger.error("❌ No agents could be initialized! Please check your API keys.")
+        # Create a dummy agent to prevent crashes
+        logger.info("Creating dummy agent to prevent application crash...")
+        primary_agent = type('DummyAgent', (), {
+            'execute': lambda self, prompt: "Error: No API keys configured. Please set GEMINI_KEY or OPENAI_KEY.",
+            'name': 'dummy'
+        })()
+    
+    # Use fallback logic if primary agent is missing
+    if not primary_agent and fallback_agent:
+        primary_agent = fallback_agent
+        logger.info("Using OpenAI agent as primary since Gemini key is missing")
+    elif not fallback_agent and primary_agent:
+        fallback_agent = primary_agent
+        logger.info("Using Gemini agent as fallback since OpenAI key is missing")
+    
+    # Register available agents globally
+    if primary_agent:
+        AgentRegistry.register("primary", primary_agent)
+        AgentRegistry.register("gemini", primary_agent)
+    if fallback_agent:
+        AgentRegistry.register("fallback", fallback_agent)
+        AgentRegistry.register("gpt4o", fallback_agent)
+    if secondary_agent:
+        AgentRegistry.register("gemini2", secondary_agent)
+    
+    logger.info("Agent registration completed")
+    
+except Exception as e:
+    logger.error(f"❌ Error initializing agents: {e}")
+    logger.error("Creating minimal agent setup to prevent crashes...")
+    # Create minimal dummy agents
+    dummy_agent = type('DummyAgent', (), {
+        'execute': lambda self, prompt: f"Agent initialization error: {str(e)}",
+        'name': 'error'
+    })()
+    AgentRegistry.register("primary", dummy_agent)
+    AgentRegistry.register("fallback", dummy_agent)
 
 # Start the MCP setup process in the background
 run_setup()

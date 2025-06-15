@@ -12,6 +12,7 @@ import aiohttp
 import requests
 from aiohttp import ClientTimeout
 from utils.platform_config import get_platform_config
+from utils.mcp_sse_client import MCPSSEClient
 
 logger = logging.getLogger(__name__)
 
@@ -616,16 +617,23 @@ class MCPServerManager:
             
             if server_type == "sse":
                 print(f"  💡 SSE-based MCP server detected")
-                print(f"  ⚠️ SSE tool discovery not yet implemented")
-                print(f"  💡 Tools will be available when proper SSE client is added")
-                # For now, set empty tools but don't fail
-                server.tools = {}
+                success = self._discover_tools_via_sse(server)
+                if not success:
+                    print(f"  ⚠️ SSE tool discovery failed")
+                    server.tools = {}
                 
             elif server_type == "http":
                 print(f"  🌐 HTTP-based MCP server detected")
                 success = self._discover_tools_via_http(server)
                 if not success:
                     print(f"  ⚠️ HTTP tool discovery failed, server may use different protocol")
+                    server.tools = {}
+                    
+            elif server_type == "stdio":
+                print(f"  💬 Stdio-based MCP server detected")
+                success = self._discover_tools_via_stdio(server)
+                if not success:
+                    print(f"  ⚠️ Stdio tool discovery failed")
                     server.tools = {}
                     
             elif server_type == "websocket":
@@ -646,19 +654,22 @@ class MCPServerManager:
             
     def _detect_server_type(self, server: MCPServer) -> str:
         """Dynamically detect MCP server transport type"""
-        if not server.url:
-            return "unknown"
-            
-        # Check URL patterns
-        if '/sse' in server.url and not server.process:
-            return "sse"
+        # Check URL patterns first (explicit URLs take precedence)
+        if server.url:
+            if '/sse' in server.url and not server.process:
+                return "sse"
+            elif 'ws://' in server.url or 'wss://' in server.url:
+                return "websocket"
+            elif 'http://' in server.url or 'https://' in server.url:
+                # Check if this is a real HTTP URL or a fallback for stdio server
+                if server.process and ('localhost:3000' in server.url or '127.0.0.1:3000' in server.url):
+                    # This is likely a stdio server with fallback URL - test if HTTP actually works
+                    if not self._test_url_basic(server.url):
+                        return "stdio"
+                return "http"
         elif server.process:
-            # Started by us, likely HTTP-based
-            return "http"
-        elif 'ws://' in server.url or 'wss://' in server.url:
-            return "websocket"
-        elif 'http://' in server.url or 'https://' in server.url:
-            return "http"
+            # Process-based server without specific URL - likely stdio
+            return "stdio"
         else:
             return "unknown"
             
@@ -689,6 +700,142 @@ class MCPServerManager:
                 
         except Exception as e:
             print(f"    ❌ HTTP discovery error: {e}")
+            return False
+
+    def _discover_tools_via_sse(self, server: MCPServer) -> bool:
+        """Discover tools from SSE-based MCP server"""
+        try:
+            print(f"    🔍 Attempting SSE tool discovery...")
+            
+            # Create SSE client
+            sse_client = MCPSSEClient(server.url)
+            
+            # Run async discovery in sync context
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                # Connect and initialize
+                print(f"    📡 Connecting to SSE server...")
+                loop.run_until_complete(sse_client.connect())
+                
+                print(f"    🔧 Initializing MCP session...")
+                loop.run_until_complete(sse_client.initialize_mcp())
+                
+                print(f"    🔍 Discovering tools...")
+                tools = loop.run_until_complete(sse_client.discover_tools())
+                
+                if tools:
+                    server.tools = {}
+                    for tool in tools:
+                        tool_name = tool.get('name')
+                        if tool_name:
+                            server.tools[tool_name] = tool
+                    print(f"    ✅ Discovered {len(tools)} tools via SSE: {list(server.tools.keys())}")
+                    return True
+                else:
+                    print(f"    ⚠️ No tools returned from SSE discovery")
+                    return False
+                    
+            finally:
+                # Clean up SSE client
+                if hasattr(sse_client, 'close'):
+                    loop.run_until_complete(sse_client.close())
+                loop.close()
+                
+        except Exception as e:
+            print(f"    ❌ SSE discovery error: {e}")
+            return False
+
+    def _discover_tools_via_stdio(self, server: MCPServer) -> bool:
+        """Discover tools from stdio-based MCP server"""
+        try:
+            print(f"    🔍 Attempting stdio tool discovery...")
+            
+            if not server.process or not hasattr(server.process, "stdin") or not hasattr(server.process, "stdout"):
+                print(f"    ❌ No valid stdio process available")
+                return False
+            
+            # Check if process is still running
+            if server.process.poll() is not None:
+                print(f"    ❌ Process is not running")
+                return False
+            
+            # First, send initialize request
+            print(f"    🔧 Initializing MCP session...")
+            init_request = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {
+                        "roots": {"listChanged": True},
+                        "sampling": {}
+                    },
+                    "clientInfo": {
+                        "name": "mcp-server-manager",
+                        "version": "1.0.0"
+                    }
+                }
+            }
+            
+            # Send init request
+            init_json = json.dumps(init_request) + "\n"
+            server.process.stdin.write(init_json.encode())
+            server.process.stdin.flush()
+            
+            # Read init response
+            init_response_line = server.process.stdout.readline()
+            if init_response_line:
+                init_response = json.loads(init_response_line.decode().strip())
+                if "error" in init_response:
+                    print(f"    ❌ Initialize failed: {init_response['error']}")
+                    return False
+                print(f"    ✅ MCP session initialized")
+            
+            # Now send tools/list request
+            print(f"    🔍 Requesting tools list...")
+            tools_request = {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/list",
+                "params": {}
+            }
+            
+            tools_json = json.dumps(tools_request) + "\n"
+            server.process.stdin.write(tools_json.encode())
+            server.process.stdin.flush()
+            
+            # Read tools response
+            tools_response_line = server.process.stdout.readline()
+            if tools_response_line:
+                tools_response = json.loads(tools_response_line.decode().strip())
+                if "error" in tools_response:
+                    print(f"    ❌ Tools list failed: {tools_response['error']}")
+                    return False
+                
+                # Extract tools from response
+                result = tools_response.get("result", {})
+                tools = result.get("tools", [])
+                
+                if tools:
+                    server.tools = {}
+                    for tool in tools:
+                        tool_name = tool.get('name')
+                        if tool_name:
+                            server.tools[tool_name] = tool
+                    print(f"    ✅ Discovered {len(tools)} tools via stdio: {list(server.tools.keys())}")
+                    return True
+                else:
+                    print(f"    ⚠️ No tools returned from stdio discovery")
+                    return False
+            else:
+                print(f"    ❌ No response from stdio tools request")
+                return False
+                
+        except Exception as e:
+            print(f"    ❌ Stdio discovery error: {e}")
             return False
             
     def _try_multiple_discovery_methods(self, server: MCPServer) -> bool:
