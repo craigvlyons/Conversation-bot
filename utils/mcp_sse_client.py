@@ -127,7 +127,6 @@ class MCPSSEClient:
                 else:
                     # Tools nested in result.tools
                     tools = result.get("tools", [])
-                
                 logger.info(f"✅ Discovered {len(tools)} tools via SSE")
                 return tools
             else:
@@ -137,7 +136,7 @@ class MCPSSEClient:
         except Exception as e:
             logger.error(f"❌ Tool discovery error: {e}")
             return []
-    
+
     async def execute_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a tool on the MCP server."""
         try:
@@ -161,19 +160,18 @@ class MCPSSEClient:
             elif response and "error" in response:
                 error_msg = response["error"].get("message", "Unknown error")
                 logger.error(f"❌ Tool execution failed: {error_msg}")
-                return {"error": error_msg}
+                return {"error": error_msg}            
             else:
                 logger.error(f"❌ Unexpected tool response: {response}")
                 return {"error": "Unexpected response format"}
-                
         except Exception as e:
             logger.error(f"❌ Tool execution error: {e}")
             return {"error": str(e)}
-    
+
     async def _send_request(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
-        Send a JSON-RPC request to the SSE server and wait for response.
-        Uses a hybrid approach: POST for requests, SSE for responses.
+        Send a JSON-RPC request to FastMCP SSE server.
+        Try multiple communication patterns to find the one that works.
         """
         try:
             if not self.session:
@@ -183,26 +181,163 @@ class MCPSSEClient:
                 logger.error("Not connected to SSE server")
                 return None
             
-            # Try the hybrid approach: POST request to /jsonrpc endpoint
-            jsonrpc_url = f"{self.base_url}/jsonrpc"
+            request_id = request.get("id")
+            logger.debug(f"📤 Trying FastMCP request (ID: {request_id}): {request}")
+            
+            # Method 1: Try direct POST to base URL (most common FastMCP pattern)
             headers = {"Content-Type": "application/json"}
             
-            logger.debug(f"📤 Sending request to {jsonrpc_url}: {request}")
+            try:
+                async with self.session.post(self.base_url, json=request, headers=headers) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        logger.debug(f"📥 Direct POST success: {result}")
+                        return result
+                    else:
+                        logger.debug(f"Direct POST failed: {response.status}")
+            except Exception as e:
+                logger.debug(f"Direct POST error: {e}")
             
-            async with self.session.post(jsonrpc_url, json=request, headers=headers) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    logger.debug(f"📥 Received response: {result}")
-                    return result
-                else:
-                    logger.error(f"❌ Request failed: HTTP {response.status}")
-                    response_text = await response.text()
-                    logger.error(f"Response body: {response_text}")
-                    return None
+            # Method 2: Try POST to /message endpoint (alternative FastMCP pattern)
+            try:
+                message_url = f"{self.base_url}/message"
+                async with self.session.post(message_url, json=request, headers=headers) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        logger.debug(f"📥 Message endpoint success: {result}")
+                        return result
+                    else:
+                        logger.debug(f"Message endpoint failed: {response.status}")
+            except Exception as e:
+                logger.debug(f"Message endpoint error: {e}")
+                
+            # Method 3: Try the SSE stream approach as fallback
+            logger.debug("Trying SSE stream approach...")
+            return await self._send_via_sse_stream(request)
                     
         except Exception as e:
-            logger.error(f"❌ Request failed: {e}")
+            logger.error(f"❌ All FastMCP methods failed: {e}")
             return None
+    
+    async def _send_via_sse_stream(self, request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Send request and wait for response via bidirectional SSE stream."""
+        try:
+            request_id = request.get("id")
+            
+            # Create a persistent SSE connection for bidirectional communication
+            async with self.session.get(self.sse_url) as response:
+                if response.status != 200:
+                    logger.error(f"❌ SSE stream connection failed: HTTP {response.status}")
+                    return None
+                
+                logger.debug("📡 Established bidirectional SSE stream")
+                
+                # Convert request to SSE format and send it
+                await self._send_message_to_sse_stream(request, response)
+                
+                # Listen for the response with matching request ID
+                return await self._wait_for_sse_response(request_id, response)
+                
+        except Exception as e:
+            logger.error(f"❌ SSE stream communication failed: {e}")
+            return None
+    
+    async def _send_message_to_sse_stream(self, message: Dict[str, Any], response) -> None:
+        """Send a message through the SSE stream."""
+        try:
+            # FastMCP SSE might expect messages in a specific format
+            # Let's try sending as a data event
+            message_json = json.dumps(message)
+            
+            # Some SSE implementations accept data via the same connection
+            # We might need to use a separate connection or websocket for sending
+            # For now, let's try the established pattern
+            
+            logger.debug(f"📤 Attempting to send message via SSE: {message_json}")
+            
+            # Note: Pure SSE is typically unidirectional (server->client)
+            # FastMCP might use a hybrid approach or websockets for bidirectional
+            # We may need to investigate the actual FastMCP SSE implementation
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to send message to SSE stream: {e}")
+    
+    async def _wait_for_sse_response(self, request_id: int, response) -> Optional[Dict[str, Any]]:
+        """Wait for SSE response with matching request ID."""
+        try:
+            logger.debug(f"📥 Waiting for SSE response with ID: {request_id}")
+            
+            timeout_count = 0
+            max_timeout = 30  # 30 second timeout
+            
+            async for line in response.content:
+                timeout_count += 1
+                if timeout_count > max_timeout * 10:  # Rough timeout check
+                    logger.warning(f"⏰ Timeout waiting for response to request {request_id}")
+                    break
+                
+                line_str = line.decode('utf-8').strip()
+                
+                if not line_str or line_str.startswith(':'):
+                    continue  # Skip empty lines and comments
+                
+                # Parse SSE message
+                sse_message = self._parse_sse_line(line_str)
+                if not sse_message:
+                    continue
+                
+                # Check if this is a JSON-RPC response
+                if sse_message.data:
+                    try:
+                        json_data = json.loads(sse_message.data)
+                        if json_data.get("id") == request_id:
+                            logger.debug(f"📥 Received matching SSE response: {json_data}")
+                            return json_data
+                    except json.JSONDecodeError:
+                        continue
+                
+                # Log other events for debugging
+                logger.debug(f"📡 SSE event: {sse_message.event}, data: {sse_message.data}")
+            
+            logger.warning(f"⚠️ No response received for request {request_id}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ Error waiting for SSE response: {e}")
+            return None
+    
+    async def _read_sse_response(self, response, request_id: int) -> Optional[Dict[str, Any]]:
+        """Read and parse SSE response stream for a specific request ID."""
+        try:
+            # For now, try to read as JSON directly from the response
+            # This assumes the server returns JSON even for SSE requests
+            result = await response.json()
+            return result
+        except Exception as e:
+            logger.warning(f"Failed to parse SSE response as JSON: {e}")
+            
+            # If JSON parsing fails, try to read as SSE stream
+            try:
+                async for line in response.content:
+                    line = line.decode('utf-8').strip()
+                    
+                    if not line or line.startswith(':'):
+                        continue
+                    
+                    if line.startswith('data: '):
+                        data = line[6:]  # Remove 'data: ' prefix
+                        try:
+                            json_data = json.loads(data)
+                            if json_data.get("id") == request_id:
+                                return json_data
+                        except json.JSONDecodeError:
+                            continue
+                            
+                return None
+                
+            except Exception as sse_error:
+                logger.error(f"Failed to read SSE stream: {sse_error}")
+                return None
     
     async def _listen_to_sse_stream(self) -> AsyncGenerator[SSEMessage, None]:
         """

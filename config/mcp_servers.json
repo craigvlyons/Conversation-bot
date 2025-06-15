@@ -2,11 +2,7 @@
   "azure-devops": {
     "url": "http://127.0.0.1:8000/sse",
     "description": "Azure DevOps MCP Server",
-    "enabled": true,
-    "command": "",
-    "args": [
-      ""
-    ]
+    "enabled": true
   },
   "playwright": {
     "description": "Playwright Browser MCP Server",
