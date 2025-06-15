@@ -359,6 +359,7 @@ class MCPServerManager:
             # Start the process with stdout and stderr pipes
             process = subprocess.Popen(
                 cmd_parts,
+                stdin=subprocess.PIPE,   # Enable stdin for MCP communication
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=env,

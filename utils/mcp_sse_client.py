@@ -32,9 +32,11 @@ class MCPSSEClient:
         if base_url.endswith('/sse'):
             self.sse_url = base_url
             self.base_url = base_url[:-4]  # Remove /sse for JSON-RPC endpoint
+            self.jsonrpc_url = f"{self.base_url}/jsonrpc"
         else:
             self.base_url = base_url.rstrip('/')
             self.sse_url = f"{self.base_url}/sse"
+            self.jsonrpc_url = f"{self.base_url}/jsonrpc"
         
         self.session: Optional[aiohttp.ClientSession] = None
         self.connected = False
@@ -112,7 +114,7 @@ class MCPSSEClient:
             tools_request = {
                 "jsonrpc": "2.0",
                 "id": self._get_request_id(),
-                "method": "getTools",  # Correct method name for this Azure DevOps server
+                "method": "getTools",  # Azure DevOps server uses getTools instead of tools/list
                 "params": {}
             }
             
@@ -184,9 +186,21 @@ class MCPSSEClient:
             request_id = request.get("id")
             logger.debug(f"📤 Trying FastMCP request (ID: {request_id}): {request}")
             
-            # Method 1: Try direct POST to base URL (most common FastMCP pattern)
+            # Method 1: Try /jsonrpc endpoint (most common for Azure DevOps MCP)
             headers = {"Content-Type": "application/json"}
             
+            try:
+                async with self.session.post(self.jsonrpc_url, json=request, headers=headers) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        logger.debug(f"📥 JSON-RPC endpoint success: {result}")
+                        return result
+                    else:
+                        logger.debug(f"JSON-RPC endpoint failed: {response.status}")
+            except Exception as e:
+                logger.debug(f"JSON-RPC endpoint error: {e}")
+            
+            # Method 2: Try direct POST to base URL (fallback)
             try:
                 async with self.session.post(self.base_url, json=request, headers=headers) as response:
                     if response.status == 200:
