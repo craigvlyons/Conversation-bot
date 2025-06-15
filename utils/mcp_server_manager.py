@@ -610,8 +610,7 @@ class MCPServerManager:
         """Discover capabilities of connected servers - dynamic approach for any MCP server"""
         for server_id, server in self.connected_servers.items():
             print(f"🔍 Discovering capabilities for {server_id}...")
-            
-            # Dynamic server type detection
+              # Dynamic server type detection
             server_type = self._detect_server_type(server)
             print(f"  📡 Detected server type: {server_type}")
             
@@ -847,4 +846,57 @@ class MCPServerManager:
         print(f"    🔄 HTTP failed, server may require SSE/WebSocket client")
         print(f"    💡 This server is connected but tool discovery needs implementation")
         return False
+    
+    def _discover_tools_via_sse_sync(self, server) -> bool:
+        """Discover tools from SSE server using the improved SSE client (synchronous wrapper)"""
+        import asyncio
+        from utils.mcp_sse_client import MCPSSEClient
+        
+        try:
+            # Create SSE client for this server
+            sse_client = MCPSSEClient(server.url)
+            
+            # Run async discovery in sync context
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                # Connect and discover tools
+                connected = loop.run_until_complete(sse_client.connect())
+                if not connected:
+                    print(f"    ❌ Failed to connect to SSE server")
+                    return False
                 
+                # Initialize MCP session
+                init_result = loop.run_until_complete(sse_client.initialize_mcp())
+                if not init_result:
+                    print(f"    ❌ Failed to initialize MCP session")
+                    return False
+                
+                # Discover tools
+                tools = loop.run_until_complete(sse_client.discover_tools())
+                
+                if tools:
+                    print(f"    ✅ Discovered {len(tools)} tools via SSE")
+                    # Convert tools to the expected format
+                    server.tools = {}
+                    for tool in tools:
+                        tool_name = tool.get("name", "unknown")
+                        server.tools[tool_name] = tool
+                        print(f"      - {tool_name}: {tool.get('description', 'No description')}")
+                    return True
+                else:
+                    print(f"    ⚠️ No tools found")
+                    server.tools = {}
+                    return False
+                    
+            finally:
+                # Clean up
+                loop.run_until_complete(sse_client.disconnect())
+                loop.close()
+                
+        except Exception as e:
+            print(f"    ❌ SSE tool discovery error: {e}")
+            server.tools = {}
+            return False
+
